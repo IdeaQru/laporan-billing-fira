@@ -18,6 +18,8 @@ const ROOT = join(__dirname, '..', '..', '..');
 // -- Dynamic Path Resolvers --
 function resolveLaporanPath() {
   const candidates = [
+    join(ROOT, 'data', 'raw', 'uploaded_laporan.xls'),
+    join(ROOT, 'data', 'raw', 'uploaded_laporan.xlsx'),
     join(ROOT, 'data', 'raw', 'data laporan fixxx.xls'),
     join(ROOT, 'data', 'raw', 'laporan juli.xls'),
     join(ROOT, 'data', 'raw', 'data laporan fix.xls'),

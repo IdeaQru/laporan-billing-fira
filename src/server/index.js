@@ -32,7 +32,7 @@ import {
 import ExcelJS from 'exceljs';
 import { migrate } from '../infrastructure/etl/migrate_excel_to_sqlite.js';
 import { generateDashboardExcel } from '../infrastructure/etl/generate_dashboard_excel.js';
-import { existsSync } from 'fs';
+import { existsSync, writeFileSync, mkdirSync, copyFileSync } from 'fs';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
 
@@ -467,6 +467,58 @@ app.post('/api/sync', async (req, res) => {
   } catch (err) {
     console.error('Error during database sync:', err);
     res.status(500).json({ error: `Gagal menyinkronkan database: ${err.message}` });
+  }
+});
+
+// ============================================================
+// Upload Excel File & Auto-Sync Route
+// ============================================================
+app.post('/api/upload-excel', express.raw({ type: '*/*', limit: '50mb' }), async (req, res) => {
+  try {
+    if (!req.body || req.body.length === 0) {
+      return res.status(400).json({ error: 'File Excel tidak boleh kosong.' });
+    }
+
+    const rawDir = join(ROOT, 'data', 'raw');
+    if (!existsSync(rawDir)) {
+      mkdirSync(rawDir, { recursive: true });
+    }
+
+    // Primary uploaded path (always writable even if Excel app holds lock on fixxx.xls)
+    const uploadedPath = join(rawDir, 'uploaded_laporan.xls');
+    const mainPath = join(rawDir, 'data laporan fixxx.xls');
+    const altPath  = join(rawDir, 'laporan juli.xls');
+    const fixPath  = join(rawDir, 'data laporan fix.xls');
+
+    // Save uploaded file bytes
+    writeFileSync(uploadedPath, req.body);
+    try { writeFileSync(mainPath, req.body); } catch (_) {}
+    try { writeFileSync(altPath, req.body); } catch (_) {}
+    try { writeFileSync(fixPath, req.body); } catch (_) {}
+
+    console.log(`📥 Uploaded new Excel file saved (${req.body.length} bytes)`);
+
+    // 1. Run database migration automatically
+    const counts = migrate();
+
+    // 2. Auto-regenerate 6-sheet dashboard.xlsx automatically
+    const dashPath = join(rawDir, 'dashboard.xlsx');
+    try {
+      await generateDashboardExcel(dashPath);
+      copyFileSync(dashPath, join(ROOT, 'dashboard.xlsx'));
+      console.log('✅ dashboard.xlsx regenerated and copied after file upload');
+    } catch (dashErr) {
+      console.warn('⚠️  dashboard.xlsx generation warning:', dashErr.message);
+    }
+
+    res.json({
+      success: true,
+      message: 'File Excel berhasil diunggah, database disinkronkan, dan dashboard.xlsx diperbarui!',
+      counts,
+    });
+  } catch (err) {
+    console.error('Error during upload-excel:', err);
+    res.status(500).json({ error: `Gagal memproses file Excel: ${err.message}` });
   }
 });
 

@@ -125,8 +125,27 @@ export const api = {
   getAreas: () => fetchApi('/areas'),
   getPackages: () => fetchApi('/packages'),
 
-  // ── Sync Database ──
+  // ── Sync Database & Upload Excel ──
   syncDatabase: () => postApi('/sync', {}),
+  uploadExcel: async (file) => {
+    const token = getToken();
+    const baseUrl = getBaseUrl();
+    const arrayBuffer = await file.arrayBuffer();
+    const res = await fetch(`${baseUrl}/upload-excel`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/octet-stream',
+        'Authorization': token ? `Bearer ${token}` : '',
+        'X-Filename': encodeURIComponent(file.name),
+      },
+      body: arrayBuffer,
+    });
+    if (!res.ok) {
+      const errJson = await res.json().catch(() => ({ error: 'Upload file gagal' }));
+      throw new Error(errJson.error || 'Gagal mengunggah file Excel');
+    }
+    return res.json();
+  },
 
   // ── Export ──
   getExportUrl: ({ search, status, areas, month } = {}) => {

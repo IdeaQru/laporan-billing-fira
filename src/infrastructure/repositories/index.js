@@ -121,13 +121,13 @@ export function getDashboardSummary({ month = '2026-07', areas = [], status = ''
     `;
     let totalPaid = db.prepare(paidQuery).get(...invParams).total;
 
-    // Total outstanding
+    // Total outstanding (only BELUM LUNAS / ISOLIR with unpaid_amount > 0)
     const outstandingQuery = `
-      SELECT COALESCE(SUM(i.amount), 0) as total
+      SELECT COALESCE(SUM(i.unpaid_amount), 0) as total
       FROM invoices i
       JOIN customers c ON i.customer_id = c.id
       JOIN areas a ON c.area_id = a.id
-      ${invWhereClause ? invWhereClause + " AND i.status != 'LUNAS'" : "WHERE i.status != 'LUNAS'"}
+      ${invWhereClause ? invWhereClause + " AND i.status NOT IN ('LUNAS', 'FREE')" : "WHERE i.status NOT IN ('LUNAS', 'FREE')"}
     `;
     let totalOutstanding = db.prepare(outstandingQuery).get(...invParams).total;
 
@@ -157,7 +157,7 @@ export function getDashboardSummary({ month = '2026-07', areas = [], status = ''
       for (const row of histRows) {
         if (row.status_text && row.status_text.toLowerCase().includes('lunas')) {
           totalPaid += row.price;
-        } else if (row.status_text) {
+        } else if (row.status_text && !row.status_text.toLowerCase().includes('free')) {
           totalOutstanding += row.price;
         }
       }
@@ -187,7 +187,7 @@ export function getDashboardSummary({ month = '2026-07', areas = [], status = ''
         a.name as areaName,
         COUNT(DISTINCT c.id) as totalCustomers,
         COALESCE(SUM(CASE WHEN i.status = 'LUNAS' THEN i.amount ELSE 0 END), 0) as totalPaid,
-        COALESCE(SUM(CASE WHEN i.status != 'LUNAS' THEN i.amount ELSE 0 END), 0) as totalUnpaid
+        COALESCE(SUM(CASE WHEN i.status NOT IN ('LUNAS', 'FREE') THEN i.unpaid_amount ELSE 0 END), 0) as totalUnpaid
       FROM areas a
       LEFT JOIN customers c ON c.area_id = a.id
       LEFT JOIN invoices i ON i.customer_id = c.id ${month && month !== 'ALL' ? 'AND i.billing_period = ?' : ''}
@@ -426,7 +426,7 @@ export function getHistoricalTrends() {
       SELECT
         i.billing_period as period,
         COALESCE(SUM(CASE WHEN i.status = 'LUNAS' THEN i.amount ELSE 0 END), 0) as paidAmount,
-        COALESCE(SUM(CASE WHEN i.status != 'LUNAS' THEN i.amount ELSE 0 END), 0) as unpaidAmount,
+        COALESCE(SUM(CASE WHEN i.status NOT IN ('LUNAS', 'FREE') THEN i.unpaid_amount ELSE 0 END), 0) as unpaidAmount,
         COUNT(DISTINCT i.customer_id) as totalCustomers,
         COUNT(CASE WHEN i.status = 'LUNAS' THEN 1 END) as lunasCount
       FROM invoices i
@@ -437,7 +437,7 @@ export function getHistoricalTrends() {
       SELECT
         msh.month_year as period,
         COUNT(CASE WHEN LOWER(msh.status_text) LIKE '%lunas%' THEN 1 END) * 100000 as paidAmount,
-        COUNT(CASE WHEN LOWER(msh.status_text) NOT LIKE '%lunas%' AND msh.status_text != '' THEN 1 END) * 100000 as unpaidAmount,
+        COUNT(CASE WHEN LOWER(msh.status_text) NOT LIKE '%lunas%' AND LOWER(msh.status_text) NOT LIKE '%free%' AND msh.status_text != '' THEN 1 END) * 100000 as unpaidAmount,
         COUNT(DISTINCT msh.customer_id) as totalCustomers,
         COUNT(CASE WHEN LOWER(msh.status_text) LIKE '%lunas%' THEN 1 END) as lunasCount
       FROM monthly_status_history msh
@@ -775,104 +775,54 @@ export function getUnpaidReportList({ month = '2026-07', areas = [] } = {}) {
     const db = getReadonlyDatabase();
     const areaList = parseAreasParam(areas);
 
-    let where = ["(i.status != 'LUNAS' OR LOWER(COALESCE(i.notes, '')) LIKE '%free%')"];
-    let params = [];
+    let areaFilter = '';
+    let areaParams = [];
 
     if (areaList.length > 0) {
       const placeholders = areaList.map(() => '?').join(',');
-      where.push(`a.name IN (${placeholders})`);
-      params.push(...areaList);
-    }
-    if (month && month !== 'ALL') {
-      where.push("i.billing_period <= ?");
-      params.push(month);
+      areaFilter = `AND a.name IN (${placeholders})`;
+      areaParams.push(...areaList);
     }
 
-    const whereClause = `WHERE ${where.join(' AND ')}`;
-
-    let query = `
+    // 1. Get all active customers matching area filter
+    const custQuery = `
       SELECT
         c.id as customer_id,
         c.customer_code,
         c.name as customer_name,
         a.name as area_name,
-        COALESCE(p.speed_name, 'Standar') as package_name,
-        COALESCE(p.price, i.amount, 0) as package_price,
-        SUM(CASE WHEN LOWER(COALESCE(i.notes, '')) LIKE '%free%' THEN 0 ELSE COALESCE(NULLIF(i.unpaid_amount, 0), i.amount, p.price, 100000) END) as total_unpaid_amount,
-        COUNT(CASE WHEN LOWER(COALESCE(i.notes, '')) LIKE '%free%' THEN NULL ELSE i.id END) as unpaid_months_count,
-        GROUP_CONCAT(i.billing_period, ',') as unpaid_periods,
-        GROUP_CONCAT(i.notes, ' | ') as all_notes,
-        MAX(CASE WHEN LOWER(COALESCE(i.notes, '')) LIKE '%free%' THEN 1 ELSE 0 END) as is_free_flag
-      FROM invoices i
-      JOIN customers c ON i.customer_id = c.id
+        COALESCE(p.speed_name, '10mbps') as package_name,
+        COALESCE(p.price, 100000) as package_price
+      FROM customers c
       JOIN areas a ON c.area_id = a.id
       LEFT JOIN packages p ON c.package_id = p.id
-      ${whereClause}
-      GROUP BY c.id
+      WHERE 1=1 ${areaFilter}
       ORDER BY a.name ASC, c.customer_code ASC
     `;
+    const customers = db.prepare(custQuery).all(...areaParams);
 
-    let rows = db.prepare(query).all(...params);
-
-    // Fallback to monthly_status_history if invoices has no records for historical month
-    if (rows.length === 0 && month && month !== 'ALL') {
-      let hWhere = ["LOWER(msh.status_text) NOT LIKE '%lunas%' OR LOWER(msh.status_text) LIKE '%free%'"];
-      let hParams = [];
-
-      if (areaList.length > 0) {
-        const placeholders = areaList.map(() => '?').join(',');
-        hWhere.push(`a.name IN (${placeholders})`);
-        hParams.push(...areaList);
-      }
-      hWhere.push("msh.month_year <= ?");
-      hParams.push(month);
-
-      const hWhereClause = `WHERE ${hWhere.join(' AND ')}`;
-
-      const hQuery = `
-        SELECT
-          c.id as customer_id,
-          c.customer_code,
-          c.name as customer_name,
-          a.name as area_name,
-          COALESCE(p.speed_name, 'Standar') as package_name,
-          COALESCE(p.price, 100000) as package_price,
-          SUM(CASE WHEN LOWER(COALESCE(msh.status_text, '')) LIKE '%free%' THEN 0 ELSE COALESCE(p.price, 100000) END) as total_unpaid_amount,
-          COUNT(CASE WHEN LOWER(COALESCE(msh.status_text, '')) LIKE '%free%' THEN NULL ELSE msh.id END) as unpaid_months_count,
-          GROUP_CONCAT(msh.month_year, ',') as unpaid_periods,
-          GROUP_CONCAT(msh.status_text, ' | ') as all_notes,
-          MAX(CASE WHEN LOWER(COALESCE(msh.status_text, '')) LIKE '%free%' THEN 1 ELSE 0 END) as is_free_flag
-        FROM monthly_status_history msh
-        JOIN customers c ON msh.customer_id = c.id
-        JOIN areas a ON c.area_id = a.id
-        LEFT JOIN packages p ON c.package_id = p.id
-        ${hWhereClause}
-        GROUP BY c.id
-        ORDER BY a.name ASC, c.customer_code ASC
-      `;
-
-      rows = db.prepare(hQuery).all(...hParams);
-    }
-
-    db.close();
-
-    // Map rows and handle FREE status logic
     let totalUnpaidCount = 0;
     let totalUnpaidAmount = 0;
     let totalFreeCount = 0;
+    const resultList = [];
 
-    const mappedCustomers = rows.map((row) => {
-      const isFree = Boolean(row.is_free_flag) || (row.all_notes || '').toLowerCase().includes('free');
-      const detailStr = formatUnpaidMonthsDetail(row.unpaid_periods);
+    for (const cust of customers) {
+      // Check target month status
+      const targetInv = db.prepare(
+        'SELECT status, amount, unpaid_amount, notes FROM invoices WHERE customer_id = ? AND billing_period = ?'
+      ).get(cust.id, month);
 
-      if (isFree) {
+      const targetStatus = targetInv ? targetInv.status : '';
+
+      if (targetStatus === 'FREE' || (targetInv?.notes || '').toLowerCase().includes('free')) {
+        // Customer is FREE in the target month
         totalFreeCount++;
-        return {
-          customer_code: row.customer_code,
-          customer_name: row.customer_name,
-          area_name: row.area_name,
-          package_name: row.package_name,
-          package_price: row.package_price,
+        resultList.push({
+          customer_code: cust.customer_code,
+          customer_name: cust.customer_name,
+          area_name: cust.area_name,
+          package_name: cust.package_name,
+          package_price: cust.package_price,
           amount: 0,
           unpaid_amount: 0,
           unpaid_months: 0,
@@ -880,30 +830,52 @@ export function getUnpaidReportList({ month = '2026-07', areas = [] } = {}) {
           is_free: true,
           status_label: 'FREE / GRATIS',
           keterangan: 'FREE (Gratis / Diskon)',
-        };
+        });
       } else {
-        const unpaidVal = row.total_unpaid_amount || row.package_price || 0;
-        totalUnpaidCount++;
-        totalUnpaidAmount += unpaidVal;
-        return {
-          customer_code: row.customer_code,
-          customer_name: row.customer_name,
-          area_name: row.area_name,
-          package_name: row.package_name,
-          package_price: row.package_price,
-          amount: unpaidVal,
-          unpaid_amount: unpaidVal,
-          unpaid_months: row.unpaid_months_count || 1,
-          unpaid_detail: detailStr,
-          is_free: false,
-          status_label: 'BELUM LUNAS',
-          keterangan: detailStr,
-        };
+        // Check unpaid invoices for periods <= month where status != 'LUNAS' AND status != 'FREE'
+        const unpaidInvoices = db.prepare(`
+          SELECT billing_period, amount, unpaid_amount, status, notes
+          FROM invoices
+          WHERE customer_id = ?
+            AND billing_period <= ?
+            AND status NOT IN ('LUNAS', 'FREE')
+            AND LOWER(COALESCE(notes, '')) NOT LIKE '%free%'
+          ORDER BY billing_period ASC
+        `).all(cust.id, month);
+
+        if (unpaidInvoices.length > 0) {
+          const sumUnpaid = unpaidInvoices.reduce(
+            (acc, inv) => acc + (inv.unpaid_amount > 0 ? inv.unpaid_amount : (inv.amount || cust.package_price)),
+            0
+          );
+          const periodsStr = unpaidInvoices.map(i => i.billing_period).join(',');
+          const detailStr = formatUnpaidMonthsDetail(periodsStr);
+
+          totalUnpaidCount++;
+          totalUnpaidAmount += sumUnpaid;
+
+          resultList.push({
+            customer_code: cust.customer_code,
+            customer_name: cust.customer_name,
+            area_name: cust.area_name,
+            package_name: cust.package_name,
+            package_price: cust.package_price,
+            amount: sumUnpaid,
+            unpaid_amount: sumUnpaid,
+            unpaid_months: unpaidInvoices.length,
+            unpaid_detail: detailStr,
+            is_free: false,
+            status_label: 'BELUM LUNAS',
+            keterangan: detailStr,
+          });
+        }
       }
-    });
+    }
+
+    db.close();
 
     return Ok({
-      unpaidCustomers: mappedCustomers,
+      unpaidCustomers: resultList,
       totalUnpaidCount,
       totalUnpaidAmount,
       totalFreeCount,

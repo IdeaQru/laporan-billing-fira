@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { api } from './services/api';
 import LoginPage from './components/LoginPage';
 import GlobalFilterBar from './components/GlobalFilterBar';
@@ -83,9 +83,11 @@ function Dashboard({ session, onLogout }) {
   const [modalInitialTab, setModalInitialTab] = useState('customer');
   const [preselectedInvoice, setPreselectedInvoice] = useState(null);
   const [syncing, setSyncing] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const fileInputRef = useRef(null);
 
   const handleSyncDatabase = () => {
-    if (syncing) return;
+    if (syncing || uploading) return;
     setSyncing(true);
     api.syncDatabase()
       .then(() => {
@@ -99,6 +101,32 @@ function Dashboard({ session, onLogout }) {
         setSyncing(false);
         setTimeout(() => setToast(null), 5000);
       });
+  };
+
+  const handleUploadClick = () => {
+    if (uploading || syncing) return;
+    if (fileInputRef.current) {
+      fileInputRef.current.click();
+    }
+  };
+
+  const handleFileChange = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploading(true);
+    try {
+      await api.uploadExcel(file);
+      setToast(`✅ Berkas ${file.name} berhasil di-upload!`);
+      fetchSummary();
+      setUploading(false);
+      setTimeout(() => setToast(null), 5000);
+    } catch (err) {
+      setToast(`⚠️ Gagal upload Excel: ${err.message}`);
+      setUploading(false);
+      setTimeout(() => setToast(null), 5000);
+    } finally {
+      if (e.target) e.target.value = '';
+    }
   };
 
   useEffect(() => {
@@ -183,9 +211,39 @@ function Dashboard({ session, onLogout }) {
           <span style={{ fontSize: '0.8rem', background: 'rgba(99,102,241,0.15)', border: '1px solid rgba(99,102,241,0.3)', borderRadius: 99, padding: '4px 14px', color: '#a5b4fc' }}>
             👤 {session.username}
           </span>
+          <input
+            type="file"
+            ref={fileInputRef}
+            accept=".xls,.xlsx"
+            onChange={handleFileChange}
+            style={{ display: 'none' }}
+          />
+
+          <button
+            onClick={handleUploadClick}
+            disabled={uploading || syncing}
+            style={{
+              fontSize: '0.8rem',
+              background: 'linear-gradient(135deg, #10b981, #059669)',
+              border: 'none',
+              borderRadius: 99,
+              padding: '4px 16px',
+              color: '#ffffff',
+              cursor: (uploading || syncing) ? 'not-allowed' : 'pointer',
+              fontWeight: 600,
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 6,
+              boxShadow: '0 2px 8px rgba(16,185,129,0.3)',
+              fontFamily: 'inherit',
+            }}
+          >
+            {uploading ? '📁 Mengunggah...' : '📁 Upload Excel Baru'}
+          </button>
+
           <button
             onClick={handleSyncDatabase}
-            disabled={syncing}
+            disabled={syncing || uploading}
             style={{
               fontSize: '0.8rem',
               background: 'linear-gradient(135deg, #0284c7, #0369a1)',
@@ -193,7 +251,7 @@ function Dashboard({ session, onLogout }) {
               borderRadius: 99,
               padding: '4px 16px',
               color: '#ffffff',
-              cursor: syncing ? 'not-allowed' : 'pointer',
+              cursor: (syncing || uploading) ? 'not-allowed' : 'pointer',
               fontWeight: 600,
               display: 'inline-flex',
               alignItems: 'center',
