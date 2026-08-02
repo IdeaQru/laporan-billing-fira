@@ -1,15 +1,21 @@
 // ============================================================
-// API Client — Extended with JWT Auth Support
+// API Client — Extended with Relative Base & JWT Auth Support
 // ============================================================
-const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
+const API_BASE = import.meta.env.VITE_API_URL || '/api';
 
 function getToken() {
   return localStorage.getItem('wifi_token');
 }
 
+function getBaseUrl() {
+  if (API_BASE.startsWith('http')) return API_BASE;
+  return window.location.origin + API_BASE;
+}
+
 /** @param {string} endpoint @param {object} [params] */
 async function fetchApi(endpoint, params = {}) {
-  const url = new URL(`${API_BASE}${endpoint}`);
+  const baseUrl = getBaseUrl();
+  const url = new URL(`${baseUrl}${endpoint}`);
   Object.entries(params).forEach(([k, v]) => {
     if (v !== undefined && v !== null && v !== '') {
       if (Array.isArray(v)) {
@@ -42,7 +48,8 @@ async function fetchApi(endpoint, params = {}) {
 /** @param {string} endpoint @param {object} body @param {string} [method] */
 async function postApi(endpoint, body, method = 'POST') {
   const token = getToken();
-  const res = await fetch(`${API_BASE}${endpoint}`, {
+  const baseUrl = getBaseUrl();
+  const res = await fetch(`${baseUrl}${endpoint}`, {
     method,
     headers: {
       'Content-Type': 'application/json',
@@ -67,8 +74,9 @@ async function postApi(endpoint, body, method = 'POST') {
 
 export const api = {
   // ── Auth ──
-  login: ({ username, password }) =>
-    fetch(`${API_BASE}/auth/login`, {
+  login: ({ username, password }) => {
+    const baseUrl = getBaseUrl();
+    return fetch(`${baseUrl}/auth/login`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ username, password }),
@@ -76,7 +84,8 @@ export const api = {
       const data = await r.json();
       if (!r.ok) throw new Error(data.error || 'Login gagal');
       return data;
-    }),
+    });
+  },
 
   verifyToken: () => fetchApi('/auth/verify'),
 
@@ -115,7 +124,8 @@ export const api = {
 
   // ── Export ──
   getExportUrl: ({ search, status, areas, month } = {}) => {
-    const url = new URL(`${API_BASE}/reports/export/excel`);
+    const baseUrl = getBaseUrl();
+    const url = new URL(`${baseUrl}/reports/export/excel`);
     const token = getToken();
     if (search) url.searchParams.set('search', search);
     if (status) url.searchParams.set('status', status);
