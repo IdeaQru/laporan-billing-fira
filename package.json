@@ -1,0 +1,25 @@
+{
+  "name": "laporan-wifi-billing",
+  "version": "1.0.0",
+  "description": "Website & Database Laporan Billing Wifi",
+  "type": "module",
+  "scripts": {
+    "migrate": "node src/infrastructure/etl/migrate_excel_to_sqlite.js",
+    "dev:server": "node src/server/index.js",
+    "dev:web": "cd web && npm run dev",
+    "dev": "concurrently \"npm run dev:server\" \"npm run dev:web\"",
+    "verify-db": "node src/infrastructure/etl/verify_migration.js"
+  },
+  "dependencies": {
+    "bcryptjs": "^3.0.3",
+    "better-sqlite3": "^11.0.0",
+    "cors": "^2.8.5",
+    "exceljs": "^4.4.0",
+    "express": "^4.21.0",
+    "jsonwebtoken": "^9.0.3",
+    "xlsx": "^0.18.5"
+  },
+  "devDependencies": {
+    "concurrently": "^9.0.0"
+  }
+}
