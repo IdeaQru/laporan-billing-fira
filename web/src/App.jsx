@@ -126,8 +126,26 @@ function Dashboard({ session, onLogout }) {
       <div className="app-container">
         <div className="loading-container">
           <div className="empty-icon">⚠️</div>
-          <p style={{ color: 'var(--accent-rose)', fontSize: '1rem' }}>Gagal memuat data: {error}</p>
-          <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>Pastikan server API sudah berjalan di localhost:3001</p>
+          <p style={{ color: 'var(--accent-rose)', fontSize: '1rem', fontWeight: 600 }}>Gagal memuat data: {error}</p>
+          <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', maxWidth: 460, margin: '8px auto', textAlign: 'center' }}>
+            Jika berjalan di lokal, pastikan server API berjalan (npm run dev). Jika di-deploy (misal: Vercel), pastikan database file ikut ter-bundle.
+          </p>
+          <button
+            onClick={() => { setError(null); fetchSummary(); }}
+            style={{
+              marginTop: 14,
+              padding: '8px 20px',
+              borderRadius: 8,
+              background: 'var(--accent-indigo)',
+              color: '#ffffff',
+              border: 'none',
+              cursor: 'pointer',
+              fontWeight: 600,
+              fontSize: '0.875rem',
+            }}
+          >
+            Coba Lagi 🔄
+          </button>
         </div>
       </div>
     );
