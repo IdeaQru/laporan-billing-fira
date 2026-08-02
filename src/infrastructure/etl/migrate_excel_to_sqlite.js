@@ -3,7 +3,7 @@
 // Reads dashboard.xlsx, dashboard_backup.xlsx & laporan juli.xls,
 // reconciles exact payment/unpaid states for Jan 2026 - Juli 2026.
 // ============================================================
-import { readFileSync } from 'fs';
+import { readFileSync, existsSync, readdirSync } from 'fs';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
 import Database from 'better-sqlite3';
@@ -13,12 +13,54 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 const ROOT = join(__dirname, '..', '..', '..');
 
-// -- Paths --
+// -- Dynamic Path Resolvers --
+function resolveLaporanPath() {
+  const candidates = [
+    join(ROOT, 'data', 'raw', 'data laporan fixxx.xls'),
+    join(ROOT, 'data', 'raw', 'laporan juli.xls'),
+    join(ROOT, 'laporan juli.xls'),
+    join(ROOT, 'data', 'raw', 'data laporan fix.xls'),
+  ];
+  for (const c of candidates) {
+    if (existsSync(c)) return c;
+  }
+  const rawDir = join(ROOT, 'data', 'raw');
+  if (existsSync(rawDir)) {
+    const files = readdirSync(rawDir);
+    const found = files.find(f => (f.toLowerCase().includes('laporan') || f.toLowerCase().includes('fix')) && (f.endsWith('.xls') || f.endsWith('.xlsx')) && !f.toLowerCase().includes('dashboard'));
+    if (found) return join(rawDir, found);
+  }
+  return candidates[0];
+}
+
+function resolveDashboardPath() {
+  const candidates = [
+    join(ROOT, 'data', 'raw', 'dashboard.xlsx'),
+    join(ROOT, 'dashboard.xlsx'),
+  ];
+  for (const c of candidates) {
+    if (existsSync(c)) return c;
+  }
+  return candidates[0];
+}
+
+function resolveBackupPath() {
+  const candidates = [
+    join(ROOT, 'data', 'raw', 'dashboard_backup.xlsx'),
+    join(ROOT, 'dashboard_backup.xlsx'),
+  ];
+  for (const c of candidates) {
+    if (existsSync(c)) return c;
+  }
+  return resolveDashboardPath();
+}
+
 const DB_PATH = join(ROOT, 'data', 'wifi_billing.db');
-const DASHBOARD_PATH = join(ROOT, 'data', 'raw', 'dashboard.xlsx');
-const BACKUP_PATH = join(ROOT, 'data', 'raw', 'dashboard_backup.xlsx');
-const LAPORAN_PATH = join(ROOT, 'data', 'raw', 'laporan juli.xls');
+const DASHBOARD_PATH = resolveDashboardPath();
+const BACKUP_PATH = resolveBackupPath();
+const LAPORAN_PATH = resolveLaporanPath();
 const SCHEMA_PATH = join(ROOT, 'src', 'infrastructure', 'database', 'schema.sql');
+
 
 // -- Area mapping (sheet name → code & full name) --
 const AREA_MAP = {
