@@ -139,13 +139,32 @@ function parseUnpaidMonths(monthStr) {
   return [s];
 }
 
+import { resolveDbPath } from '../database/connection.js';
+
 function migrate() {
+  const DB_PATH = resolveDbPath();
+  const DASHBOARD_PATH = resolveDashboardPath();
+  const BACKUP_PATH = resolveBackupPath();
+  const LAPORAN_PATH = resolveLaporanPath();
+  const SCHEMA_PATH = join(ROOT, 'src', 'infrastructure', 'database', 'schema.sql');
+
+  if (!existsSync(DASHBOARD_PATH)) {
+    throw new Error(`File Excel dashboard.xlsx tidak ditemukan di folder data/raw/ atau root. Mohon pastikan file dashboard.xlsx tersedia.`);
+  }
+
   console.log('🚀 Starting Reconciled Multi-Month ETL Migration (Jan-Juli 2026)...');
   console.log(`   DB: ${DB_PATH}`);
+  console.log(`   Dashboard: ${DASHBOARD_PATH}`);
+  console.log(`   Backup: ${BACKUP_PATH}`);
+  console.log(`   Laporan: ${LAPORAN_PATH}`);
 
-  const db = new Database(DB_PATH);
-  db.pragma('journal_mode = WAL');
-  db.pragma('foreign_keys = ON');
+  const db = new Database(DB_PATH, { timeout: 10000 });
+  try {
+    db.pragma('journal_mode = WAL');
+  } catch (_) {}
+  try {
+    db.pragma('foreign_keys = ON');
+  } catch (_) {}
 
   db.exec(`
     DROP TABLE IF EXISTS monthly_status_history;
@@ -180,27 +199,28 @@ function migrate() {
   console.log('\n📦 Importing Packages & Areas...');
   const wbDash = XLSX.readFile(DASHBOARD_PATH);
   const wsSetup = wbDash.Sheets['Setup'];
-  const setupData = XLSX.utils.sheet_to_json(wsSetup, { header: 1 });
-
-  for (let i = 1; i < setupData.length; i++) {
-    const row = setupData[i];
-    const code = safeNum(row[1]);
-    const speedName = safeStr(row[2]);
-    const price = safeNum(row[3]);
-    if (code > 0 && speedName) {
-      insertPkg.run(code, speedName, price);
+  if (wsSetup) {
+    const setupData = XLSX.utils.sheet_to_json(wsSetup, { header: 1 });
+    for (let i = 1; i < setupData.length; i++) {
+      const row = setupData[i];
+      const code = safeNum(row[1]);
+      const speedName = safeStr(row[2]);
+      const price = safeNum(row[3]);
+      if (code > 0 && speedName) {
+        insertPkg.run(code, speedName, price);
+      }
     }
   }
 
   for (const [sheetName, info] of Object.entries(AREA_MAP)) {
-    insertArea.run(info.code, info.name, 'laporan juli.xls');
+    insertArea.run(info.code, info.name, LAPORAN_PATH);
   }
 
   // ========================================================
   // 2. Customers (Master)
   // ========================================================
   console.log('\n👤 Importing Master Customers...');
-  const sources = [DASHBOARD_PATH, BACKUP_PATH];
+  const sources = [DASHBOARD_PATH, BACKUP_PATH].filter(p => existsSync(p));
   let custCount = 0;
 
   for (const srcPath of sources) {
@@ -252,31 +272,38 @@ function migrate() {
   console.log(`   ✅ ${custCount} unique master customers imported`);
 
   // Read backup & active dashboard rows for reconciliation
-  const wbBack = XLSX.readFile(BACKUP_PATH);
-  const wsBackTag = wbBack.Sheets['Tagihan Pelanggan'];
-  const backTagData = XLSX.utils.sheet_to_json(wsBackTag, { header: 1 });
-
-  const wsDashTag = wbDash.Sheets['Tagihan Pelanggan'];
-  const dashTagData = XLSX.utils.sheet_to_json(wsDashTag, { header: 1 });
-
   const backMap = new Map();
-  for (let i = 2; i < backTagData.length; i++) {
-    const r = backTagData[i];
-    const code = safeStr(r[2]);
-    if (code) {
-      backMap.set(code, {
-        harga: safeNum(r[5]),
-        cash: safeNum(r[6]),
-        bca: safeNum(r[7]),
-        bri: safeNum(r[8]),
-        mandiri: safeNum(r[9]),
-        bni: safeNum(r[10]),
-        keterangan: safeStr(r[11]),
-        unpaidRp: safeNum(r[12]),
-        unpaidMonthStr: safeStr(r[13]),
-      });
+  if (existsSync(BACKUP_PATH)) {
+    try {
+      const wbBack = XLSX.readFile(BACKUP_PATH);
+      const wsBackTag = wbBack.Sheets['Tagihan Pelanggan'];
+      if (wsBackTag) {
+        const backTagData = XLSX.utils.sheet_to_json(wsBackTag, { header: 1 });
+        for (let i = 2; i < backTagData.length; i++) {
+          const r = backTagData[i];
+          const code = safeStr(r[2]);
+          if (code) {
+            backMap.set(code, {
+              harga: safeNum(r[5]),
+              cash: safeNum(r[6]),
+              bca: safeNum(r[7]),
+              bri: safeNum(r[8]),
+              mandiri: safeNum(r[9]),
+              bni: safeNum(r[10]),
+              keterangan: safeStr(r[11]),
+              unpaidRp: safeNum(r[12]),
+              unpaidMonthStr: safeStr(r[13]),
+            });
+          }
+        }
+      }
+    } catch (err) {
+      console.warn(`⚠️ Warning reading backup path ${BACKUP_PATH}:`, err.message);
     }
   }
+
+  const wsDashTag = wbDash.Sheets['Tagihan Pelanggan'];
+  const dashTagData = wsDashTag ? XLSX.utils.sheet_to_json(wsDashTag, { header: 1 }) : [];
 
   const dashMap = new Map();
   for (let i = 2; i < dashTagData.length; i++) {
