@@ -82,6 +82,24 @@ function Dashboard({ session, onLogout }) {
   const [showInputModal, setShowInputModal] = useState(false);
   const [modalInitialTab, setModalInitialTab] = useState('customer');
   const [preselectedInvoice, setPreselectedInvoice] = useState(null);
+  const [syncing, setSyncing] = useState(false);
+
+  const handleSyncDatabase = () => {
+    if (syncing) return;
+    setSyncing(true);
+    api.syncDatabase()
+      .then(() => {
+        setToast('✅ Database berhasil disinkronkan dari berkas Excel!');
+        fetchSummary();
+        setSyncing(false);
+        setTimeout(() => setToast(null), 4000);
+      })
+      .catch((err) => {
+        setToast(`⚠️ Gagal sinkronisasi: ${err.message}`);
+        setSyncing(false);
+        setTimeout(() => setToast(null), 5000);
+      });
+  };
 
   useEffect(() => {
     Promise.all([api.getMonths(), api.getAreas(), api.getPackages()])
@@ -160,11 +178,32 @@ function Dashboard({ session, onLogout }) {
       <header className="app-header">
         <h1>Dashboard Laporan WiFi Billing</h1>
         <p>Analisis Per Bulan • Master Pelanggan • Filter Multi-Lokasi • Entri Data Web</p>
-        {/* User badge + logout */}
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 12, marginTop: 12 }}>
+        {/* User badge + Sync + logout */}
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 12, marginTop: 12, flexWrap: 'wrap' }}>
           <span style={{ fontSize: '0.8rem', background: 'rgba(99,102,241,0.15)', border: '1px solid rgba(99,102,241,0.3)', borderRadius: 99, padding: '4px 14px', color: '#a5b4fc' }}>
             👤 {session.username}
           </span>
+          <button
+            onClick={handleSyncDatabase}
+            disabled={syncing}
+            style={{
+              fontSize: '0.8rem',
+              background: 'linear-gradient(135deg, #0284c7, #0369a1)',
+              border: 'none',
+              borderRadius: 99,
+              padding: '4px 16px',
+              color: '#ffffff',
+              cursor: syncing ? 'not-allowed' : 'pointer',
+              fontWeight: 600,
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 6,
+              boxShadow: '0 2px 8px rgba(2,132,199,0.3)',
+              fontFamily: 'inherit',
+            }}
+          >
+            {syncing ? '🔄 Menyinkronkan...' : '🔄 Synchronize Database'}
+          </button>
           <button
             onClick={onLogout}
             style={{ fontSize: '0.75rem', background: 'rgba(244,63,94,0.12)', border: '1px solid rgba(244,63,94,0.25)', borderRadius: 99, padding: '4px 14px', color: '#fb7185', cursor: 'pointer', fontFamily: 'inherit' }}
@@ -173,6 +212,7 @@ function Dashboard({ session, onLogout }) {
           </button>
         </div>
       </header>
+
 
       {/* Global Filter Bar */}
       <GlobalFilterBar

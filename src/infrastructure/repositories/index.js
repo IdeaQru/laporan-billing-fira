@@ -738,6 +738,35 @@ export function getMonthlyHistory(customerCode) {
   }
 }
 
+const MONTH_SHORT_ID = {
+  '01': 'Jan',
+  '02': 'Feb',
+  '03': 'Mar',
+  '04': 'Apr',
+  '05': 'Mei',
+  '06': 'Juni',
+  '07': 'Juli',
+  '08': 'Agustus',
+  '09': 'September',
+  '10': 'Oktober',
+  '11': 'November',
+  '12': 'Desember',
+};
+
+function formatUnpaidMonthsDetail(periodsStr) {
+  if (!periodsStr) return '0 Bulan';
+  const periods = Array.from(new Set(periodsStr.split(',').map(s => s.trim()))).sort();
+  const monthNames = periods.map(p => {
+    const parts = p.split('-');
+    const m = parts[1];
+    return MONTH_SHORT_ID[m] || m;
+  });
+  if (periods.length === 1) {
+    return `1 Bulan (${monthNames[0]})`;
+  }
+  return `${periods.length} Bulan (${monthNames.join(', ')})`;
+}
+
 // ============================================================
 // Unpaid Customers Report List (For PDF Page 3+)
 // ============================================================
@@ -755,7 +784,7 @@ export function getUnpaidReportList({ month = '2026-07', areas = [] } = {}) {
       params.push(...areaList);
     }
     if (month && month !== 'ALL') {
-      where.push("i.billing_period = ?");
+      where.push("i.billing_period <= ?");
       params.push(month);
     }
 
@@ -763,21 +792,23 @@ export function getUnpaidReportList({ month = '2026-07', areas = [] } = {}) {
 
     let query = `
       SELECT
+        c.id as customer_id,
         c.customer_code,
         c.name as customer_name,
         a.name as area_name,
         COALESCE(p.speed_name, 'Standar') as package_name,
         COALESCE(p.price, i.amount, 0) as package_price,
-        i.amount,
-        i.status,
-        i.unpaid_amount,
-        i.unpaid_months,
-        i.notes as keterangan
+        SUM(CASE WHEN LOWER(COALESCE(i.notes, '')) LIKE '%free%' THEN 0 ELSE COALESCE(NULLIF(i.unpaid_amount, 0), i.amount, p.price, 100000) END) as total_unpaid_amount,
+        COUNT(CASE WHEN LOWER(COALESCE(i.notes, '')) LIKE '%free%' THEN NULL ELSE i.id END) as unpaid_months_count,
+        GROUP_CONCAT(i.billing_period, ',') as unpaid_periods,
+        GROUP_CONCAT(i.notes, ' | ') as all_notes,
+        MAX(CASE WHEN LOWER(COALESCE(i.notes, '')) LIKE '%free%' THEN 1 ELSE 0 END) as is_free_flag
       FROM invoices i
       JOIN customers c ON i.customer_id = c.id
       JOIN areas a ON c.area_id = a.id
       LEFT JOIN packages p ON c.package_id = p.id
       ${whereClause}
+      GROUP BY c.id
       ORDER BY a.name ASC, c.customer_code ASC
     `;
 
@@ -793,28 +824,30 @@ export function getUnpaidReportList({ month = '2026-07', areas = [] } = {}) {
         hWhere.push(`a.name IN (${placeholders})`);
         hParams.push(...areaList);
       }
-      hWhere.push("msh.month_year = ?");
+      hWhere.push("msh.month_year <= ?");
       hParams.push(month);
 
       const hWhereClause = `WHERE ${hWhere.join(' AND ')}`;
 
       const hQuery = `
         SELECT
+          c.id as customer_id,
           c.customer_code,
           c.name as customer_name,
           a.name as area_name,
           COALESCE(p.speed_name, 'Standar') as package_name,
           COALESCE(p.price, 100000) as package_price,
-          COALESCE(p.price, 100000) as amount,
-          'BELUM LUNAS' as status,
-          COALESCE(p.price, 100000) as unpaid_amount,
-          1 as unpaid_months,
-          msh.status_text as keterangan
+          SUM(CASE WHEN LOWER(COALESCE(msh.status_text, '')) LIKE '%free%' THEN 0 ELSE COALESCE(p.price, 100000) END) as total_unpaid_amount,
+          COUNT(CASE WHEN LOWER(COALESCE(msh.status_text, '')) LIKE '%free%' THEN NULL ELSE msh.id END) as unpaid_months_count,
+          GROUP_CONCAT(msh.month_year, ',') as unpaid_periods,
+          GROUP_CONCAT(msh.status_text, ' | ') as all_notes,
+          MAX(CASE WHEN LOWER(COALESCE(msh.status_text, '')) LIKE '%free%' THEN 1 ELSE 0 END) as is_free_flag
         FROM monthly_status_history msh
         JOIN customers c ON msh.customer_id = c.id
         JOIN areas a ON c.area_id = a.id
         LEFT JOIN packages p ON c.package_id = p.id
         ${hWhereClause}
+        GROUP BY c.id
         ORDER BY a.name ASC, c.customer_code ASC
       `;
 
@@ -829,9 +862,8 @@ export function getUnpaidReportList({ month = '2026-07', areas = [] } = {}) {
     let totalFreeCount = 0;
 
     const mappedCustomers = rows.map((row) => {
-      const ketLower = (row.keterangan || '').toLowerCase();
-      const statusLower = (row.status || '').toLowerCase();
-      const isFree = ketLower.includes('free') || statusLower.includes('free');
+      const isFree = Boolean(row.is_free_flag) || (row.all_notes || '').toLowerCase().includes('free');
+      const detailStr = formatUnpaidMonthsDetail(row.unpaid_periods);
 
       if (isFree) {
         totalFreeCount++;
@@ -841,15 +873,16 @@ export function getUnpaidReportList({ month = '2026-07', areas = [] } = {}) {
           area_name: row.area_name,
           package_name: row.package_name,
           package_price: row.package_price,
-          amount: row.amount,
+          amount: 0,
           unpaid_amount: 0,
           unpaid_months: 0,
+          unpaid_detail: 'FREE',
           is_free: true,
           status_label: 'FREE / GRATIS',
-          keterangan: row.keterangan || 'FREE (Gratis / Diskon)',
+          keterangan: 'FREE (Gratis / Diskon)',
         };
       } else {
-        const unpaidVal = row.unpaid_amount > 0 ? row.unpaid_amount : (row.amount || row.package_price || 0);
+        const unpaidVal = row.total_unpaid_amount || row.package_price || 0;
         totalUnpaidCount++;
         totalUnpaidAmount += unpaidVal;
         return {
@@ -858,12 +891,13 @@ export function getUnpaidReportList({ month = '2026-07', areas = [] } = {}) {
           area_name: row.area_name,
           package_name: row.package_name,
           package_price: row.package_price,
-          amount: row.amount,
+          amount: unpaidVal,
           unpaid_amount: unpaidVal,
-          unpaid_months: row.unpaid_months || 1,
+          unpaid_months: row.unpaid_months_count || 1,
+          unpaid_detail: detailStr,
           is_free: false,
           status_label: 'BELUM LUNAS',
-          keterangan: row.keterangan || 'Belum Lunas',
+          keterangan: detailStr,
         };
       }
     });

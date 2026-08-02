@@ -441,18 +441,21 @@ export default function PdfReportTemplate({ data, selectedMonth, selectedAreas, 
                     <table className="a4-table mini-unpaid">
                       <thead>
                         <tr>
-                          <th style={{ width: 28, textAlign: 'center' }}>No</th>
-                          <th style={{ width: 75 }}>Kode Plg</th>
+                          <th style={{ width: 26, textAlign: 'center' }}>No</th>
+                          <th style={{ width: 70 }}>Kode Plg</th>
                           <th>Nama Pelanggan</th>
-                          <th>Wilayah / Area</th>
-                          <th style={{ width: 85 }}>Paket / Tarif</th>
-                          <th style={{ width: 105, textAlign: 'right' }}>Tunggakan (Rp)</th>
-                          <th style={{ width: 100, textAlign: 'center' }}>Status / Ket</th>
+                          <th style={{ width: 95 }}>Wilayah / Area</th>
+                          <th style={{ width: 75 }}>Tarif</th>
+                          <th style={{ width: 95, textAlign: 'right' }}>Tunggakan (Rp)</th>
+                          <th style={{ width: 160 }}>Rincian Bulan Belum Lunas</th>
                         </tr>
                       </thead>
                       <tbody>
                         {pageCustomers.map((cust, itemIdx) => {
                           const rowNo = startRowNo + itemIdx;
+                          const detailText = cust.unpaid_detail || cust.keterangan || '';
+                          const monthParts = detailText.includes('(') ? detailText.substring(detailText.indexOf('(')) : detailText;
+
                           return (
                             <tr key={itemIdx} className={cust.is_free ? 'row-free' : ''}>
                               <td style={{ textAlign: 'center', color: '#64748b', fontSize: '0.7rem' }}>{rowNo}</td>
@@ -463,11 +466,18 @@ export default function PdfReportTemplate({ data, selectedMonth, selectedAreas, 
                               <td style={{ textAlign: 'right', fontWeight: 700, fontSize: '0.75rem', color: cust.is_free ? '#0284c7' : '#dc2626' }}>
                                 {cust.is_free ? 'Rp 0' : formatRupiah(cust.unpaid_amount)}
                               </td>
-                              <td style={{ textAlign: 'center' }}>
+                              <td style={{ fontSize: '0.7rem' }}>
                                 {cust.is_free ? (
                                   <span className="a4-badge free">FREE</span>
                                 ) : (
-                                  <span className="a4-badge low">TUNGGAKAN</span>
+                                  <div style={{ display: 'flex', alignItems: 'center', gap: 4, flexWrap: 'wrap' }}>
+                                    <span className="a4-badge low" style={{ flexShrink: 0 }}>
+                                      {cust.unpaid_months > 0 ? `${cust.unpaid_months} BULAN` : 'TUNGGAKAN'}
+                                    </span>
+                                    <span style={{ fontSize: '0.7rem', color: '#334155', fontWeight: 600 }}>
+                                      {monthParts}
+                                    </span>
+                                  </div>
                                 )}
                               </td>
                             </tr>
@@ -476,6 +486,7 @@ export default function PdfReportTemplate({ data, selectedMonth, selectedAreas, 
                       </tbody>
                     </table>
                   </div>
+
                 )}
 
                 {/* Summary Footer Box on the last page of unpaid list */}

@@ -409,6 +409,12 @@ function migrate() {
 
   db.close();
   console.log('✅ Database updated successfully.');
+  return counts;
 }
 
-migrate();
+export { migrate };
+
+if (process.argv[1] && process.argv[1].endsWith('migrate_excel_to_sqlite.js')) {
+  migrate();
+}
+

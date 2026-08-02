@@ -30,6 +30,8 @@ import {
   generateDetailNarrative,
 } from '../domain/services/index.js';
 import ExcelJS from 'exceljs';
+import { migrate } from '../infrastructure/etl/migrate_excel_to_sqlite.js';
+
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -427,6 +429,139 @@ app.get('/api/reports/export/excel', async (req, res) => {
   res.end();
 });
 
+// ============================================================
+// Sync Database Route
+// ============================================================
+app.post('/api/sync', (req, res) => {
+  try {
+    const counts = migrate();
+    res.json({
+      success: true,
+      message: 'Database berhasil disinkronkan dari berkas sumber Excel',
+      counts,
+    });
+  } catch (err) {
+    console.error('Error during database sync:', err);
+    res.status(500).json({ error: `Gagal menyinkronkan database: ${err.message}` });
+  }
+});
+
+// ============================================================
+// Export Dashboard Excel (Template Source Format)
+// ============================================================
+app.get('/api/reports/export/dashboard-template', (req, res) => {
+  const { month, areas, search, status } = req.query;
+  const areaList = areas ? String(areas).split(',') : [];
+
+  const result = getReportTable({
+    month,
+    areas: areaList,
+    search,
+    status,
+    page: 1,
+    limit: 10000,
+  });
+
+  if (!result.ok) {
+    return res.status(500).json({ error: result.error });
+  }
+
+  const workbook = new ExcelJS.Workbook();
+  workbook.creator = 'Laporan WiFi Billing System';
+  workbook.created = new Date();
+
+  const ws = workbook.addWorksheet('Tagihan Pelanggan', {
+    properties: { tabColor: { argb: '0284C7' } },
+  });
+
+  ws.mergeCells('A1:N1');
+  const titleCell = ws.getCell('A1');
+  titleCell.value = `REKAP TAGIHAN PELANGGAN WIFI BILLING - PERIODE ${month === 'ALL' ? 'SEMUA BULAN' : (month || 'JULI 2026')}`;
+  titleCell.font = { bold: true, size: 14, color: { argb: 'FFFFFF' } };
+  titleCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: '0284C7' } };
+  titleCell.alignment = { horizontal: 'center', vertical: 'middle' };
+  ws.getRow(1).height = 32;
+
+  const headers = [
+    'NO', 'NAMA KELOMPOK / AREA', 'KODE/ID PELANGGAN', 'NAMA PELANGGAN', 'PAKET', 'HARGA',
+    'CASH', 'BCA', 'BRI', 'MANDIRI', 'BNI', 'KETERANGAN', 'TUNGGAKAN (RP)', 'TUNGGAKAN (BULAN)'
+  ];
+
+  const headerRow = ws.addRow(headers);
+  headerRow.height = 26;
+  headerRow.eachCell((cell) => {
+    cell.font = { bold: true, size: 10, color: { argb: 'FFFFFF' } };
+    cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: '0F172A' } };
+    cell.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
+  });
+
+  const data = result.value.data;
+  let totalHarga = 0, totalCash = 0, totalBca = 0, totalBri = 0, totalMandiri = 0, totalBni = 0, totalTunggakan = 0;
+
+  data.forEach((row, idx) => {
+    const r = ws.addRow([
+      idx + 1,
+      row.area_name || '-',
+      row.customer_code,
+      row.name,
+      row.package_name || '-',
+      row.package_price || 0,
+      row.cash_paid || 0,
+      row.bca_paid || 0,
+      row.bri_paid || 0,
+      row.mandiri_paid || 0,
+      row.bni_paid || 0,
+      row.keterangan || row.status || '',
+      row.unpaid_amount || 0,
+      row.unpaid_months || 0,
+    ]);
+
+    totalHarga += (row.package_price || 0);
+    totalCash += (row.cash_paid || 0);
+    totalBca += (row.bca_paid || 0);
+    totalBri += (row.bri_paid || 0);
+    totalMandiri += (row.mandiri_paid || 0);
+    totalBni += (row.bni_paid || 0);
+    totalTunggakan += (row.unpaid_amount || 0);
+
+    const ketCell = r.getCell(12);
+    if (row.status === 'LUNAS') {
+      ketCell.font = { bold: true, color: { argb: '059669' } };
+    } else if ((row.keterangan || '').toLowerCase().includes('free')) {
+      ketCell.font = { bold: true, color: { argb: '0284C7' } };
+    } else {
+      ketCell.font = { bold: true, color: { argb: 'DC2626' } };
+    }
+
+    [6, 7, 8, 9, 10, 11, 13].forEach(col => {
+      r.getCell(col).numFmt = '#,##0';
+    });
+  });
+
+  const totalRow = ws.addRow([
+    '', 'TOTAL', '', '', '',
+    totalHarga, totalCash, totalBca, totalBri, totalMandiri, totalBni,
+    '', totalTunggakan, '',
+  ]);
+  totalRow.font = { bold: true, size: 11 };
+  totalRow.eachCell((cell) => {
+    cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'E2E8F0' } };
+  });
+
+  ws.columns = [
+    { width: 6 }, { width: 18 }, { width: 18 }, { width: 24 }, { width: 14 }, { width: 14 },
+    { width: 12 }, { width: 12 }, { width: 12 }, { width: 12 }, { width: 12 },
+    { width: 22 }, { width: 16 }, { width: 16 },
+  ];
+
+  res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+  res.setHeader('Content-Disposition', `attachment; filename=dashboard_wifi_${month || 'juli_2026'}.xlsx`);
+
+  workbook.xlsx.write(res).then(() => {
+    res.end();
+  });
+});
+
 // Export for Vercel serverless
 export default app;
 
@@ -436,4 +571,5 @@ if (process.env.VERCEL !== '1') {
     console.log(`🚀 Laporan WiFi API Server running on http://localhost:${PORT}`);
   });
 }
+
 

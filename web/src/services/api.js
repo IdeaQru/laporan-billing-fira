@@ -125,6 +125,9 @@ export const api = {
   getAreas: () => fetchApi('/areas'),
   getPackages: () => fetchApi('/packages'),
 
+  // ── Sync Database ──
+  syncDatabase: () => postApi('/sync', {}),
+
   // ── Export ──
   getExportUrl: ({ search, status, areas, month } = {}) => {
     const baseUrl = getBaseUrl();
@@ -137,4 +140,17 @@ export const api = {
     if (token) url.searchParams.set('token', token);
     return url.toString();
   },
+
+  getDashboardTemplateExportUrl: ({ search, status, areas, month } = {}) => {
+    const baseUrl = getBaseUrl();
+    const url = new URL(`${baseUrl}/reports/export/dashboard-template`);
+    const token = getToken();
+    if (search) url.searchParams.set('search', search);
+    if (status) url.searchParams.set('status', status);
+    if (areas && areas.length > 0) url.searchParams.set('areas', areas.join(','));
+    if (month) url.searchParams.set('month', month);
+    if (token) url.searchParams.set('token', token);
+    return url.toString();
+  },
 };
+

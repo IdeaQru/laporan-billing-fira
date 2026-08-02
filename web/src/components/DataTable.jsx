@@ -85,6 +85,13 @@ export default function DataTable({
     month: selectedMonth,
   });
 
+  const dashboardExportUrl = api.getDashboardTemplateExportUrl({
+    search: searchQuery,
+    status: selectedStatus,
+    areas: selectedAreas,
+    month: selectedMonth,
+  });
+
   return (
     <div className="tab-pane active" style={{ animation: 'fadeIn 0.3s ease' }}>
       {/* Action Bar */}
@@ -93,21 +100,33 @@ export default function DataTable({
           Menampilkan data periode: <strong style={{ color: 'var(--accent-cyan)' }}>{selectedMonth}</strong> ({pagination.totalRows} tagihan)
         </div>
 
-        <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
+        <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
           <button className="btn btn-primary" onClick={() => onOpenInputModal('customer')}>
             + Tambah Pelanggan
           </button>
+          <a
+            href={dashboardExportUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="btn btn-secondary"
+            style={{ background: 'linear-gradient(135deg, #0284c7, #0369a1)', color: '#fff', border: 'none', display: 'inline-flex', alignItems: 'center', gap: 6, textDecoration: 'none', fontSize: '0.85rem' }}
+            title="Export Excel sesuai format template dashboard source"
+          >
+            📊 Export Dashboard (.xlsx)
+          </a>
           <a
             href={exportUrl}
             target="_blank"
             rel="noopener noreferrer"
             className="btn btn-secondary"
-            style={{ background: 'linear-gradient(135deg, #10b981, #059669)', color: '#fff', border: 'none', display: 'inline-flex', alignItems: 'center', gap: 6, textDecoration: 'none' }}
+            style={{ background: 'linear-gradient(135deg, #10b981, #059669)', color: '#fff', border: 'none', display: 'inline-flex', alignItems: 'center', gap: 6, textDecoration: 'none', fontSize: '0.85rem' }}
+            title="Export Excel format standar"
           >
-            Export Excel (.xlsx)
+             Export Standard (.xlsx)
           </a>
         </div>
       </div>
+
 
       {/* Streamlined Desktop Table */}
       <div className="glass-panel" style={{ overflow: 'hidden', padding: 0 }}>
