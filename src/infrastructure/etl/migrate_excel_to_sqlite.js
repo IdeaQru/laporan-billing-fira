@@ -102,13 +102,13 @@ function safeStr(val) {
 
 function detectPaymentMethod(text) {
   const t = String(text || '').toLowerCase();
+  if (t.includes('cash') || t.includes('tunai')) return 'CASH';
   if (t.includes('bca')) return 'BCA';
   if (t.includes('bni')) return 'BNI';
   if (t.includes('mandiri')) return 'MANDIRI';
   if (t.includes('bri')) return 'BRI';
-  if (t.includes('cash') || t.includes('tunai')) return 'CASH';
-  if (t.includes('tf')) return 'BRI';   // default TF = BRI
-  return 'CASH';
+  // Jika hanya "lunas" atau tanpa keterangan cash spesifik -> default ke BRI
+  return 'BRI';
 }
 
 // ============================================================
