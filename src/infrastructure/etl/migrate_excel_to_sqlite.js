@@ -296,16 +296,10 @@ function migrate() {
           continue;
         }
 
-        // Price is in column F (index 5) = PEMBAYARAN base price
-        let rawPrice = safeNum(row[5]);
-        if (rawPrice < 30000 || rawPrice > 2000000) {
-          // Try to detect FREE package in col 5
-          const col5Str = String(row[5] || '').trim().toLowerCase();
-          if (col5Str === 'free') {
-            rawPrice = 0;
-          } else {
-            rawPrice = 100000; // default
-          }
+        // Base monthly tariff from column F (index 5 = PEMBAYARAN column)
+        let basePrice = safeNum(row[5]);
+        if (basePrice < 30000 || basePrice > 2000000) {
+          basePrice = 100000; // standard default monthly tariff
         }
 
         const custCode = `${areaInfo.code}-${String(areaCustIdx++).padStart(3, '0')}`;
@@ -328,33 +322,25 @@ function migrate() {
         if (!custRow) continue;
         custCounter++;
 
-        // ---- Process each month column ----
+        // ---- Process EACH month column independently ----
         for (const [colIdx, periodCode] of Object.entries(colMonthMap)) {
           const rawCell = row[Number(colIdx)];
           const valStr  = String(rawCell ?? '').trim().toLowerCase();
 
           let status           = 'BELUM LUNAS';
-          let unpaidAmount     = rawPrice;
+          let invoiceAmount    = basePrice;
+          let unpaidAmount     = basePrice;
           let unpaidMonths     = 1;
           let notes            = 'Belum Lunas';
           let isLunas          = false;
-          let isFree           = false;
 
           if (valStr === 'free' || valStr === 'gratis' || valStr.includes('diskon')) {
-            // FREE — tagihan = 0
-            isFree = true;
+            // HANYA BULAN INI YANG FREE
             status       = 'FREE';
+            invoiceAmount = basePrice;
             unpaidAmount = 0;
             unpaidMonths = 0;
-            notes        = 'FREE';
-            totalFree++;
-          } else if (rawPrice === 0) {
-            // Pelanggan free (paket gratis) — kolom PEMBAYARAN = FREE/0
-            isFree = true;
-            status       = 'FREE';
-            unpaidAmount = 0;
-            unpaidMonths = 0;
-            notes        = 'FREE';
+            notes        = String(rawCell).trim() || 'FREE';
             totalFree++;
           } else if (
             !rawCell
@@ -367,20 +353,22 @@ function migrate() {
           ) {
             // Kosong atau belum bayar
             status       = valStr === 'isolir' ? 'ISOLIR' : 'BELUM LUNAS';
-            unpaidAmount = rawPrice;
+            invoiceAmount = basePrice;
+            unpaidAmount = basePrice;
             unpaidMonths = 1;
             notes        = valStr === 'isolir' ? 'ISOLIR' : 'Belum Lunas';
             totalUnpaid++;
           } else {
-            // Ada isian → LUNAS — bisa: "lunas", tanggal, nominal, "tf", nama bank, dll.
-            isLunas = true;
+            // Ada isian pembayaran → LUNAS untuk bulan ini (misal: "lunas", "lunas cash", "lunas (tf)", tanggal, dll.)
+            isLunas      = true;
             status       = 'LUNAS';
+            invoiceAmount = basePrice;
             unpaidAmount = 0;
             unpaidMonths = 0;
             notes        = String(rawCell).trim();
           }
 
-          insertInv.run(custRow.id, periodCode, rawPrice, status, unpaidAmount, unpaidMonths, notes);
+          insertInv.run(custRow.id, periodCode, invoiceAmount, status, unpaidAmount, unpaidMonths, notes);
           totalInvoices++;
 
           const invRow = getInvId.get(custRow.id, periodCode);
@@ -393,7 +381,7 @@ function migrate() {
           if (isLunas) {
             const payMethod = detectPaymentMethod(notes);
             // payment_date: use periodCode + '-15' as proxy
-            insertPay.run(invRow.id, payMethod, rawPrice, `${periodCode}-15`, notes);
+            insertPay.run(invRow.id, payMethod, invoiceAmount, `${periodCode}-15`, notes);
             totalPayments++;
           }
         }
