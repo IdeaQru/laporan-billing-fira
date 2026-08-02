@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { api } from '../services/api';
+import PdfReportTemplate from './PdfReportTemplate';
 
 const formatRupiah = (n) => `Rp ${Number(n || 0).toLocaleString('id-ID')}`;
 const formatNum = (n) => Number(n || 0).toLocaleString('id-ID');
@@ -14,6 +15,7 @@ const PAYMENT_COLORS = {
 
 export default function ExecutiveSummary({ data, selectedMonth, selectedAreas }) {
   const [showNarrative, setShowNarrative] = useState(true);
+  const [showPdfModal, setShowPdfModal] = useState(false);
   const [trends, setTrends] = useState([]);
 
   useEffect(() => {
@@ -44,23 +46,39 @@ export default function ExecutiveSummary({ data, selectedMonth, selectedAreas })
 
   return (
     <div>
-      {/* Active Filter Indicators */}
+      {/* Active Filter Indicators & Export PDF Button */}
       <div style={{
         display: 'flex',
         alignItems: 'center',
-        gap: 12,
+        justifyContent: 'space-between',
         marginBottom: 20,
         fontSize: '0.8rem',
         color: 'var(--text-muted)',
         flexWrap: 'wrap',
+        gap: 12,
       }}>
-        <span>Filter Aktif:</span>
-        <span className="status-badge lunas">
-          🗓️ Bulan: {selectedMonth === 'ALL' ? 'Semua Bulan' : selectedMonth}
-        </span>
-        <span className="status-badge proses">
-          📍 Lokasi: {selectedAreas.length === 0 ? 'Semua Area' : `${selectedAreas.length} Area (${selectedAreas.join(', ')})`}
-        </span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+          <span>Filter Aktif:</span>
+          <span className="status-badge lunas">
+            🗓️ Bulan: {selectedMonth === 'ALL' ? 'Semua Bulan' : selectedMonth}
+          </span>
+          <span className="status-badge proses">
+            📍 Lokasi: {selectedAreas.length === 0 ? 'Semua Area' : `${selectedAreas.length} Area (${selectedAreas.join(', ')})`}
+          </span>
+        </div>
+
+        <button
+          className="btn btn-primary"
+          onClick={() => setShowPdfModal(true)}
+          style={{
+            background: 'linear-gradient(135deg, #ec4899, #8b5cf6)',
+            boxShadow: '0 4px 15px rgba(236,72,153,0.3)',
+            height: 38,
+            fontSize: '0.85rem'
+          }}
+        >
+          📄 Export PDF Summary (A4)
+        </button>
       </div>
 
       {/* KPI Cards */}
@@ -282,6 +300,16 @@ export default function ExecutiveSummary({ data, selectedMonth, selectedAreas })
           </div>
         )}
       </div>
+
+      {/* A4 PDF Report Template Modal */}
+      {showPdfModal && (
+        <PdfReportTemplate
+          data={data}
+          selectedMonth={selectedMonth}
+          selectedAreas={selectedAreas}
+          onClose={() => setShowPdfModal(false)}
+        />
+      )}
     </div>
   );
 }
