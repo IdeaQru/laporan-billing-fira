@@ -787,7 +787,7 @@ export function getUnpaidReportList({ month = '2026-07', areas = [] } = {}) {
     // 1. Get all active customers matching area filter
     const custQuery = `
       SELECT
-        c.id as customer_id,
+        c.id,
         c.customer_code,
         c.name as customer_name,
         a.name as area_name,
