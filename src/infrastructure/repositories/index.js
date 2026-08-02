@@ -163,8 +163,14 @@ export function getDashboardSummary({ month = '2026-07', areas = [], status = ''
       }
     }
 
-    // Expenses
-    const totalExpenses = db.prepare('SELECT COALESCE(SUM(amount), 0) as total FROM expenses').get().total;
+    // Expenses (Filtered per month)
+    let expQuery = 'SELECT COALESCE(SUM(amount), 0) as total FROM expenses';
+    let expParams = [];
+    if (month && month !== 'ALL') {
+      expQuery += ' WHERE expense_date LIKE ?';
+      expParams.push(`${month}%`);
+    }
+    const totalExpenses = db.prepare(expQuery).get(...expParams).total;
 
     // Payment breakdown by method
     const paymentBreakdownQuery = `
@@ -687,11 +693,18 @@ export function createExpense({ expenseDate, description, amount, category = 'OP
   }
 }
 
-export function getExpenses() {
+export function getExpenses({ month = '' } = {}) {
   try {
     const db = getReadonlyDatabase();
-    const rows = db.prepare('SELECT * FROM expenses ORDER BY id DESC').all();
-    const total = db.prepare('SELECT COALESCE(SUM(amount), 0) as total FROM expenses').get().total;
+    let where = [];
+    let params = [];
+    if (month && month !== 'ALL') {
+      where.push('expense_date LIKE ?');
+      params.push(`${month}%`);
+    }
+    const whereClause = where.length > 0 ? `WHERE ${where.join(' AND ')}` : '';
+    const rows = db.prepare(`SELECT * FROM expenses ${whereClause} ORDER BY expense_date DESC, id DESC`).all(...params);
+    const total = db.prepare(`SELECT COALESCE(SUM(amount), 0) as total FROM expenses ${whereClause}`).get(...params).total;
     db.close();
     return Ok({ data: rows, total });
   } catch (err) {

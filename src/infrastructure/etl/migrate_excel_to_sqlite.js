@@ -401,31 +401,22 @@ function migrate() {
   console.log(`   Total FREE        : ${totalFree}`);
   console.log(`   Total BELUM LUNAS : ${totalUnpaid}`);
 
-  // === 5. Expenses from dashboard.xlsx Pengeluaran ===
-  console.log('\n💸 Importing Expenses...');
+  // === 5. Expenses (Pengeluaran Official Juli 2026 & Juni 2026 = 0) ===
+  console.log('\n💸 Importing Official Expenses...');
   let expCount = 0;
-  if (existsSync(DASHBOARD_PATH)) {
-    try {
-      const wbDash = XLSX.readFile(DASHBOARD_PATH);
-      const wsExp = wbDash.Sheets['Pengeluaran'];
-      if (wsExp) {
-        const expData = XLSX.utils.sheet_to_json(wsExp, { header: 1 });
-        for (let i = 1; i < expData.length; i++) {
-          const row = expData[i];
-          const tanggal = safeStr(row[2]);
-          const uraian  = safeStr(row[3]);
-          const jumlah  = safeNum(row[4]);
-          if (!tanggal || !uraian || jumlah === 0) continue;
-          const category = uraian.toLowerCase().includes('fee') ? 'FEE' : 'OPERASIONAL';
-          insertExp.run(tanggal, uraian, jumlah, category);
-          expCount++;
-        }
-      }
-    } catch (e) {
-      console.warn('⚠️  Could not read Pengeluaran sheet:', e.message);
-    }
+  
+  const officialJulyExpenses = [
+    { date: '2026-07-13', description: 'fee mas fany', amount: 280000, category: 'FEE' },
+    { date: '2026-07-13', description: 'fee mba ida', amount: 560000, category: 'FEE' },
+    { date: '2026-07-17', description: 'fee mas fany', amount: 230000, category: 'FEE' },
+    { date: '2026-07-31', description: 'fee mas fany', amount: 60000, category: 'FEE' },
+  ];
+
+  for (const exp of officialJulyExpenses) {
+    insertExp.run(exp.date, exp.description, exp.amount, exp.category);
+    expCount++;
   }
-  console.log(`✅ ${expCount} expenses imported`);
+  console.log(`✅ ${expCount} official July 2026 expenses imported (June 2026 = Rp 0)`);
 
   // === 6. Summary ===
   const counts = {

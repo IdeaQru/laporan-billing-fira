@@ -296,7 +296,8 @@ app.post('/api/expenses', (req, res) => {
 // Query Endpoints: Expenses, Areas, Packages, Customer History
 // ============================================================
 app.get('/api/expenses', (req, res) => {
-  const result = getExpenses();
+  const { month } = req.query;
+  const result = getExpenses({ month: month || '' });
   if (!result.ok) return res.status(500).json({ error: result.error });
   res.json(result.value);
 });

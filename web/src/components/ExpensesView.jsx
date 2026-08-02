@@ -3,13 +3,13 @@ import { api } from '../services/api';
 
 const formatRupiah = (n) => `Rp ${Number(n || 0).toLocaleString('id-ID')}`;
 
-export default function ExpensesView({ onOpenInputModal }) {
+export default function ExpensesView({ selectedMonth, onOpenInputModal }) {
   const [expenses, setExpenses] = useState({ data: [], total: 0 });
   const [loading, setLoading] = useState(true);
 
   const fetchExpenses = () => {
     setLoading(true);
-    api.getExpenses()
+    api.getExpenses(selectedMonth)
       .then(setExpenses)
       .catch(console.error)
       .finally(() => setLoading(false));
@@ -17,7 +17,7 @@ export default function ExpensesView({ onOpenInputModal }) {
 
   useEffect(() => {
     fetchExpenses();
-  }, []);
+  }, [selectedMonth]);
 
   if (loading) {
     return (

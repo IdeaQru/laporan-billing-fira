@@ -337,7 +337,7 @@ function Dashboard({ session, onLogout }) {
             <CustomerMasterView areas={areas} packages={packages} onOpenInputModal={handleOpenInputModal} onDataChange={handleDataSuccess} />
           )}
           {activeTab === 'expenses' && (
-            <ExpensesView onOpenInputModal={handleOpenInputModal} />
+            <ExpensesView selectedMonth={selectedMonth} onOpenInputModal={handleOpenInputModal} />
           )}
         </>
       )}

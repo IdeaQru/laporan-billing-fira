@@ -118,7 +118,7 @@ export const api = {
   recordPayment: (invoiceId, data) => postApi(`/invoices/${invoiceId}/pay`, data),
 
   // ── Expenses ──
-  getExpenses: () => fetchApi('/expenses'),
+  getExpenses: (params = {}) => fetchApi('/expenses', typeof params === 'string' ? { month: params } : params),
   createExpense: (data) => postApi('/expenses', data),
 
   // ── Metadata ──
