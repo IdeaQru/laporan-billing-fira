@@ -31,6 +31,14 @@ import {
 } from '../domain/services/index.js';
 import ExcelJS from 'exceljs';
 import { migrate } from '../infrastructure/etl/migrate_excel_to_sqlite.js';
+import { generateDashboardExcel } from '../infrastructure/etl/generate_dashboard_excel.js';
+import { existsSync } from 'fs';
+import { join, dirname } from 'path';
+import { fileURLToPath } from 'url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname  = dirname(__filename);
+const ROOT       = join(__dirname, '..', '..');
 
 
 const app = express();
@@ -438,12 +446,22 @@ app.get('/api/reports/export/excel', async (req, res) => {
 // ============================================================
 // Sync Database Route
 // ============================================================
-app.post('/api/sync', (req, res) => {
+app.post('/api/sync', async (req, res) => {
   try {
     const counts = migrate();
+
+    // Auto-regenerate dashboard.xlsx after successful migration
+    const dashPath = join(ROOT, 'data', 'raw', 'dashboard.xlsx');
+    try {
+      await generateDashboardExcel(dashPath);
+      console.log('✅ dashboard.xlsx auto-regenerated after sync');
+    } catch (dashErr) {
+      console.warn('⚠️  dashboard.xlsx generation failed (non-fatal):', dashErr.message);
+    }
+
     res.json({
       success: true,
-      message: 'Database berhasil disinkronkan dari berkas sumber Excel',
+      message: 'Database berhasil disinkronkan dari berkas sumber Excel dan dashboard.xlsx diperbarui',
       counts,
     });
   } catch (err) {
@@ -566,6 +584,27 @@ app.get('/api/reports/export/dashboard-template', (req, res) => {
   workbook.xlsx.write(res).then(() => {
     res.end();
   });
+});
+
+// ============================================================
+// GET /api/reports/export/dashboard-full — Download Full 6-Sheet dashboard.xlsx
+// ============================================================
+app.get('/api/reports/export/dashboard-full', async (req, res) => {
+  try {
+    const tmpPath = join(ROOT, 'data', 'raw', 'dashboard.xlsx');
+    await generateDashboardExcel(tmpPath);
+
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    res.setHeader('Content-Disposition', `attachment; filename=dashboard_wifi_lengkap_${new Date().toISOString().slice(0,10)}.xlsx`);
+
+    const ExcelJSWorkbook = new ExcelJS.Workbook();
+    await ExcelJSWorkbook.xlsx.readFile(tmpPath);
+    await ExcelJSWorkbook.xlsx.write(res);
+    res.end();
+  } catch (err) {
+    console.error('Error generating dashboard-full:', err);
+    res.status(500).json({ error: `Gagal mengekspor dashboard: ${err.message}` });
+  }
 });
 
 // Export for Vercel serverless

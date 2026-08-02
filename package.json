@@ -5,6 +5,8 @@
   "type": "module",
   "scripts": {
     "migrate": "node src/infrastructure/etl/migrate_excel_to_sqlite.js",
+    "generate-dashboard": "node scratch_generate_dashboard.js",
+    "full-update": "node src/infrastructure/etl/migrate_excel_to_sqlite.js && node scratch_generate_dashboard.js",
     "dev:server": "node src/server/index.js",
     "dev:web": "cd web && npm run dev",
     "dev": "concurrently \"npm run dev:server\" \"npm run dev:web\"",
