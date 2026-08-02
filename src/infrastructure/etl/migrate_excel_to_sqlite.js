@@ -62,35 +62,29 @@ const LAPORAN_PATH = resolveLaporanPath();
 const SCHEMA_PATH = join(ROOT, 'src', 'infrastructure', 'database', 'schema.sql');
 
 
-// -- Area mapping (sheet name → code & full name) --
+// -- Official 8 Area mapping (sheet name → code & full name) from data laporan fixxx.xls --
 const AREA_MAP = {
-  'BLIMBING_BSARI':          { code: 'BLI', name: 'Blimbingsari' },
-  'IDINAN':                  { code: 'IDN', name: 'Idinan' },
-  'TANAHLOS_TLOS':           { code: 'TLS', name: 'Tanah Los' },
-  'Jambu':                   { code: 'JMB', name: 'Jambu' },
-  'AMPILGADING_PALGADING':   { code: 'APG', name: 'Ampilgading / Palgading' },
-  'PANGGANG':                { code: 'PGG', name: 'Panggang' },
-  'palpakis':                { code: 'PLK', name: 'Palpakis' },
-  'Kebundadap':              { code: 'KBD', name: 'Kebundadap' },
-  'SUMBERWATU_SWATU':        { code: 'SWT', name: 'Sumberwatu' },
-  'TAMANSARI':               { code: 'TMS', name: 'Tamansari' },
-  'KAMPUNG ANYAR':           { code: 'KPA', name: 'Kampung Anyar' },
-  'NOALAMAT':                { code: 'NAL', name: 'No Alamat' },
+  'BLIMBING_BSARI':   { code: 'BLI', name: 'Blimbingsari' },
+  'IDINAN':           { code: 'IDN', name: 'Idinan' },
+  'TANAHLOS_TLOS':    { code: 'TLS', name: 'Tanah Los' },
+  'Jambu':            { code: 'JMB', name: 'Jambu' },
+  'PANGGANG':         { code: 'PGG', name: 'Panggang' },
+  'palpakis':         { code: 'PLK', name: 'Palpakis' },
+  'SUMBERWATU_SWATU': { code: 'SWT', name: 'Sumberwatu' },
+  'TAMANSARI':        { code: 'TMS', name: 'Tamansari' },
 };
+
+const VALID_AREA_CODES = new Set(['BLI', 'IDN', 'TLS', 'JMB', 'PGG', 'PLK', 'SWT', 'TMS']);
 
 const AREA_ALIAS = {
   'BLIMBINGSARI': 'BLI', 'BLIMBING': 'BLI',
   'IDINAN': 'IDN',
   'TANAHLOS': 'TLS', 'TANAH LOS': 'TLS', 'TANAHLOSS': 'TLS', 'TANAH LOSS': 'TLS',
   'JAMBU': 'JMB',
-  'AMPILGADING': 'APG', 'PALGADING': 'APG',
   'PANGGANG': 'PGG',
   'PALPAKIS': 'PLK',
-  'KEBUNDADAP': 'KBD', 'KEBUN DADAP': 'KBD',
   'SUMBERWATU': 'SWT',
   'TAMANSARI': 'TMS', 'TAMAN SARI': 'TMS',
-  'KAMPUNG ANYAR': 'KPA',
-  'NOALAMAT': 'NAL', 'NO ALAMAT': 'NAL',
 };
 
 const MONTHS = ['2026-01', '2026-02', '2026-03', '2026-04', '2026-05', '2026-06', '2026-07'];
@@ -194,9 +188,9 @@ function migrate() {
   const getInvId  = db.prepare('SELECT id FROM invoices WHERE customer_id = ? AND billing_period = ?');
 
   // ========================================================
-  // 1. Packages & Areas
+  // 1. Packages & Official 8 Areas
   // ========================================================
-  console.log('\n📦 Importing Packages & Areas...');
+  console.log('\n📦 Importing Packages & Official 8 Areas...');
   const wbDash = XLSX.readFile(DASHBOARD_PATH);
   const wsSetup = wbDash.Sheets['Setup'];
   if (wsSetup) {
@@ -212,15 +206,16 @@ function migrate() {
     }
   }
 
+  // Insert ONLY the official 8 areas
   for (const [sheetName, info] of Object.entries(AREA_MAP)) {
     insertArea.run(info.code, info.name, LAPORAN_PATH);
   }
 
   // ========================================================
-  // 2. Customers (Master)
+  // 2. Customers (Master - Strictly Filtered for 8 Areas)
   // ========================================================
-  console.log('\n👤 Importing Master Customers...');
-  const sources = [DASHBOARD_PATH, BACKUP_PATH].filter(p => existsSync(p));
+  console.log('\n👤 Importing Master Customers (Filtered for Official 8 Areas)...');
+  const sources = [DASHBOARD_PATH].filter(p => existsSync(p));
   let custCount = 0;
 
   for (const srcPath of sources) {
@@ -239,23 +234,14 @@ function migrate() {
       if (!custCode || !custName) continue;
 
       let areaCode = resolveAreaCode(area);
-      let areaId = null;
-      if (areaCode) {
-        let areaRow = getAreaId.get(areaCode);
-        if (!areaRow) {
-          insertArea.run(areaCode, area, srcPath);
-          areaRow = getAreaId.get(areaCode);
-        }
-        areaId = areaRow?.id;
-      } else if (area) {
-        const newCode = area.substring(0, 3).toUpperCase();
-        let existingArea = getAreaId.get(newCode);
-        if (!existingArea) {
-          insertArea.run(newCode, area, srcPath);
-          existingArea = getAreaId.get(newCode);
-        }
-        areaId = existingArea?.id;
+      if (!areaCode || !VALID_AREA_CODES.has(areaCode)) {
+        // Skip customers not belonging to the official 8 areas
+        continue;
       }
+
+      let areaRow = getAreaId.get(areaCode);
+      if (!areaRow) continue;
+      const areaId = areaRow.id;
 
       let packageId = null;
       if (pkgCode > 0) {
@@ -269,38 +255,12 @@ function migrate() {
       }
     }
   }
-  console.log(`   ✅ ${custCount} unique master customers imported`);
+  console.log(`   ✅ ${custCount} master customers imported (strictly 8 areas)`);
 
-  // Read backup & active dashboard rows for reconciliation
+
+  // Read active dashboard rows for reconciliation
   const backMap = new Map();
-  if (existsSync(BACKUP_PATH)) {
-    try {
-      const wbBack = XLSX.readFile(BACKUP_PATH);
-      const wsBackTag = wbBack.Sheets['Tagihan Pelanggan'];
-      if (wsBackTag) {
-        const backTagData = XLSX.utils.sheet_to_json(wsBackTag, { header: 1 });
-        for (let i = 2; i < backTagData.length; i++) {
-          const r = backTagData[i];
-          const code = safeStr(r[2]);
-          if (code) {
-            backMap.set(code, {
-              harga: safeNum(r[5]),
-              cash: safeNum(r[6]),
-              bca: safeNum(r[7]),
-              bri: safeNum(r[8]),
-              mandiri: safeNum(r[9]),
-              bni: safeNum(r[10]),
-              keterangan: safeStr(r[11]),
-              unpaidRp: safeNum(r[12]),
-              unpaidMonthStr: safeStr(r[13]),
-            });
-          }
-        }
-      }
-    } catch (err) {
-      console.warn(`⚠️ Warning reading backup path ${BACKUP_PATH}:`, err.message);
-    }
-  }
+
 
   const wsDashTag = wbDash.Sheets['Tagihan Pelanggan'];
   const dashTagData = wsDashTag ? XLSX.utils.sheet_to_json(wsDashTag, { header: 1 }) : [];

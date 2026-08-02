@@ -50,7 +50,13 @@ const USERS = [
 // ============================================================
 function requireAuth(req, res, next) {
   const authHeader = req.headers['authorization'];
-  const token = authHeader && authHeader.split(' ')[1];
+  let token = authHeader && authHeader.split(' ')[1];
+
+  // Support query parameter ?token=... for browser download links (<a href="...">)
+  if (!token && req.query && req.query.token) {
+    token = req.query.token;
+  }
+
   if (!token) return res.status(401).json({ error: 'Token tidak ditemukan. Silakan login.' });
 
   try {
