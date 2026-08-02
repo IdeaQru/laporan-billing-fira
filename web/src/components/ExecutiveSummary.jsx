@@ -38,7 +38,8 @@ export default function ExecutiveSummary({ data, selectedMonth, selectedAreas })
     belumLunasCount = 0,
     isolirCount = 0,
     arpu = 0,
-    detailNarrative = '',
+    highestUnpaidArea = '-',
+    lowestUnpaidArea = '-',
   } = data;
 
   const maxPayment = Math.max(...paymentBreakdown.map(p => p.total), 1);
@@ -60,10 +61,10 @@ export default function ExecutiveSummary({ data, selectedMonth, selectedAreas })
         <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
           <span>Filter Aktif:</span>
           <span className="status-badge lunas">
-            🗓️ Bulan: {selectedMonth === 'ALL' ? 'Semua Bulan' : selectedMonth}
+            Bulan: {selectedMonth === 'ALL' ? 'Semua Bulan' : selectedMonth}
           </span>
           <span className="status-badge proses">
-            📍 Lokasi: {selectedAreas.length === 0 ? 'Semua Area' : `${selectedAreas.length} Area (${selectedAreas.join(', ')})`}
+            Lokasi: {selectedAreas.length === 0 ? 'Semua Area' : `${selectedAreas.length} Area (${selectedAreas.join(', ')})`}
           </span>
         </div>
 
@@ -71,48 +72,47 @@ export default function ExecutiveSummary({ data, selectedMonth, selectedAreas })
           className="btn btn-primary"
           onClick={() => setShowPdfModal(true)}
           style={{
-            background: 'linear-gradient(135deg, #ec4899, #8b5cf6)',
-            boxShadow: '0 4px 15px rgba(236,72,153,0.3)',
+            background: 'linear-gradient(135deg, #4f46e5, #7c3aed)',
+            boxShadow: '0 4px 15px rgba(79,70,229,0.3)',
             height: 38,
-            fontSize: '0.85rem'
+            fontSize: '0.85rem',
+            display: 'flex',
+            alignItems: 'center',
+            gap: 8,
           }}
         >
-          📄 Export PDF Summary (A4)
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+          Export PDF Summary (A4)
         </button>
       </div>
 
       {/* KPI Cards */}
       <div className="kpi-grid">
         <div className="kpi-card indigo animate-in stagger-1">
-          <span className="kpi-icon">👥</span>
           <div className="kpi-label">Total Pelanggan</div>
           <div className="kpi-value">{formatNum(totalCustomers)}</div>
           <div className="kpi-sub">ARPU: {formatRupiah(arpu)}/plg</div>
         </div>
 
         <div className="kpi-card emerald animate-in stagger-2">
-          <span className="kpi-icon">💰</span>
           <div className="kpi-label">Total Pembayaran Lunas</div>
           <div className="kpi-value">{formatRupiah(totalRevenuePaid)}</div>
           <div className="kpi-sub">{lunasCount} tagihan lunas</div>
         </div>
 
         <div className="kpi-card amber animate-in stagger-3">
-          <span className="kpi-icon">⏳</span>
           <div className="kpi-label">Total Tunggakan</div>
           <div className="kpi-value">{formatRupiah(totalOutstanding)}</div>
           <div className="kpi-sub">{belumLunasCount + isolirCount} tagihan tertunggak</div>
         </div>
 
         <div className="kpi-card rose animate-in stagger-4">
-          <span className="kpi-icon">📤</span>
           <div className="kpi-label">Total Pengeluaran</div>
           <div className="kpi-value">{formatRupiah(totalExpenses)}</div>
           <div className="kpi-sub">biaya operasional</div>
         </div>
 
         <div className="kpi-card sky animate-in stagger-5">
-          <span className="kpi-icon">📈</span>
           <div className="kpi-label">Saldo Bersih</div>
           <div className="kpi-value" style={{ color: netBalance >= 0 ? 'var(--accent-emerald)' : 'var(--accent-rose)' }}>
             {formatRupiah(netBalance)}
@@ -125,7 +125,9 @@ export default function ExecutiveSummary({ data, selectedMonth, selectedAreas })
       {trends.length > 0 && (
         <div className="glass-card animate-in" style={{ marginBottom: 28 }}>
           <div className="glass-card-header">
-            <div className="icon" style={{ background: 'rgba(56, 189, 248, 0.15)', color: 'var(--accent-sky)' }}>📉</div>
+            <div className="icon" style={{ background: 'rgba(56, 189, 248, 0.15)', color: 'var(--accent-sky)' }}>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+            </div>
             <div>
               <h3>Tren Performa Pendapatan Per Bulan</h3>
               <p>Perbandingan omzet terbayar & efisiensi dari bulan ke bulan</p>
@@ -174,7 +176,9 @@ export default function ExecutiveSummary({ data, selectedMonth, selectedAreas })
         {/* Payment Breakdown Chart */}
         <div className="glass-card animate-in">
           <div className="glass-card-header">
-            <div className="icon" style={{ background: 'rgba(99, 102, 241, 0.15)', color: 'var(--accent-indigo)' }}>💳</div>
+            <div className="icon" style={{ background: 'rgba(99, 102, 241, 0.15)', color: 'var(--accent-indigo)' }}>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="1" y="4" width="22" height="16" rx="2" ry="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>
+            </div>
             <div>
               <h3>Metode Pembayaran</h3>
               <p>Distribusi pembayaran berdasarkan channel</p>
@@ -210,7 +214,9 @@ export default function ExecutiveSummary({ data, selectedMonth, selectedAreas })
         {/* Area Breakdown */}
         <div className="glass-card animate-in">
           <div className="glass-card-header">
-            <div className="icon" style={{ background: 'rgba(16, 185, 129, 0.15)', color: 'var(--accent-emerald)' }}>🗺️</div>
+            <div className="icon" style={{ background: 'rgba(16, 185, 129, 0.15)', color: 'var(--accent-emerald)' }}>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polygon points="1 6 1 22 8 18 16 22 23 18 23 2 16 6 8 2 1 6"/><line x1="8" y1="2" x2="8" y2="18"/><line x1="16" y1="6" x2="16" y2="22"/></svg>
+            </div>
             <div>
               <h3>Distribusi Per Area</h3>
               <p>Pelanggan dan pendapatan per wilayah</p>
@@ -240,7 +246,9 @@ export default function ExecutiveSummary({ data, selectedMonth, selectedAreas })
       {/* Status Distribution */}
       <div className="glass-card animate-in" style={{ marginBottom: 28 }}>
         <div className="glass-card-header">
-          <div className="icon" style={{ background: 'rgba(245, 158, 11, 0.15)', color: 'var(--accent-amber)' }}>📊</div>
+          <div className="icon" style={{ background: 'rgba(245, 158, 11, 0.15)', color: 'var(--accent-amber)' }}>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
+          </div>
           <div>
             <h3>Distribusi Status Tagihan</h3>
             <p>Proporsi status tagihan pelanggan</p>
@@ -285,18 +293,68 @@ export default function ExecutiveSummary({ data, selectedMonth, selectedAreas })
       {/* Detail Narrative */}
       <div className="glass-card narrative-section animate-in">
         <div className="glass-card-header" style={{ cursor: 'pointer' }} onClick={() => setShowNarrative(!showNarrative)}>
-          <div className="icon" style={{ background: 'rgba(167, 139, 250, 0.15)', color: 'var(--accent-purple)' }}>📝</div>
+          <div className="icon" style={{ background: 'rgba(167, 139, 250, 0.15)', color: 'var(--accent-purple)' }}>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+          </div>
           <div style={{ flex: 1 }}>
-            <h3>Analisis Detail & Rekomendasi</h3>
-            <p>Penjelasan mendalam tentang performa keuangan</p>
+            <h3>Analisis Detail & Rekomendasi Manajerial</h3>
+            <p>Penjelasan mendalam tentang performa keuangan & operasional</p>
           </div>
           <span style={{ color: 'var(--text-muted)', fontSize: '1.2rem' }}>
             {showNarrative ? '▲' : '▼'}
           </span>
         </div>
         {showNarrative && (
-          <div className="narrative-content" style={{ whiteSpace: 'pre-wrap' }}>
-            {detailNarrative}
+          <div style={{ padding: '8px 0 0' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 16, marginBottom: 16 }}>
+              <div style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid var(--border-glass)', borderRadius: 'var(--radius-md)', padding: 16 }}>
+                <h4 style={{ color: 'var(--accent-indigo)', fontSize: '0.85rem', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 8, fontWeight: 700 }}>
+                  Overview Keuangan
+                </h4>
+                <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem', lineHeight: 1.6, margin: 0 }}>
+                  Dari total <strong>{formatNum(totalCustomers)} pelanggan terdaftar</strong>, total pendapatan yang berhasil ditagih adalah <strong>{formatRupiah(totalRevenuePaid)}</strong>, sementara total tunggakan sebesar <strong>{formatRupiah(totalOutstanding)}</strong>. Total pengeluaran operasional sebesar <strong>{formatRupiah(totalExpenses)}</strong>, sehingga saldo bersih (net balance) sebesar <strong>{formatRupiah(netBalance)}</strong>.
+                </p>
+              </div>
+
+              <div style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid var(--border-glass)', borderRadius: 'var(--radius-md)', padding: 16 }}>
+                <h4 style={{ color: 'var(--accent-emerald)', fontSize: '0.85rem', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 8, fontWeight: 700 }}>
+                  Efisiensi Penagihan & Performa Area
+                </h4>
+                <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, marginBottom: 8 }}>
+                  <span style={{ fontSize: '1.5rem', fontWeight: 800, color: 'var(--accent-emerald)', fontFamily: 'var(--font-mono)' }}>{collectionEfficiency}%</span>
+                  <span className="status-badge lunas">{collectionEfficiency >= 80 ? 'Performa Baik' : 'Perlu Tingkatkan'}</span>
+                </div>
+                <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', margin: 0 }}>
+                  Area dengan tunggakan tertinggi adalah <strong>{highestUnpaidArea}</strong>. Area dengan penagihan 100% lunas: <strong>{lowestUnpaidArea}</strong>.
+                </p>
+              </div>
+            </div>
+
+            <div style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid var(--border-glass)', borderRadius: 'var(--radius-md)', padding: 16 }}>
+              <h4 style={{ color: 'var(--accent-amber)', fontSize: '0.85rem', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 12, fontWeight: 700 }}>
+                Rekomendasi Operasional
+              </h4>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: 12 }}>
+                <div style={{ display: 'flex', gap: 10, alignItems: 'flex-start' }}>
+                  <div style={{ background: 'var(--accent-indigo)', color: '#fff', width: 22, height: 22, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: '0.75rem', flexShrink: 0 }}>1</div>
+                  <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', lineHeight: 1.4 }}>
+                    <strong>Pertahankan Efisiensi Penagihan:</strong> Jaga efisiensi penagihan tetap di atas 80% melalui reminder rutin.
+                  </div>
+                </div>
+                <div style={{ display: 'flex', gap: 10, alignItems: 'flex-start' }}>
+                  <div style={{ background: 'var(--accent-indigo)', color: '#fff', width: 22, height: 22, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: '0.75rem', flexShrink: 0 }}>2</div>
+                  <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', lineHeight: 1.4 }}>
+                    <strong>Monitor Area ({highestUnpaidArea}):</strong> Lakukan koordinasi lapangan di area {highestUnpaidArea} untuk penagihan aktif.
+                  </div>
+                </div>
+                <div style={{ display: 'flex', gap: 10, alignItems: 'flex-start' }}>
+                  <div style={{ background: 'var(--accent-indigo)', color: '#fff', width: 22, height: 22, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: '0.75rem', flexShrink: 0 }}>3</div>
+                  <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', lineHeight: 1.4 }}>
+                    <strong>Evaluasi Peluang Ekspansi:</strong> Tambahkan kapasitas jaringan di area dengan tingkat pembayaran 100% lunas.
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
         )}
       </div>

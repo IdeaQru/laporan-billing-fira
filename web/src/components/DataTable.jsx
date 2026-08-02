@@ -95,7 +95,7 @@ export default function DataTable({
 
         <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
           <button className="btn btn-primary" onClick={() => onOpenInputModal('customer')}>
-            ➕ Tambah Pelanggan
+            + Tambah Pelanggan
           </button>
           <a
             href={exportUrl}
@@ -104,7 +104,7 @@ export default function DataTable({
             className="btn btn-secondary"
             style={{ background: 'linear-gradient(135deg, #10b981, #059669)', color: '#fff', border: 'none', display: 'inline-flex', alignItems: 'center', gap: 6, textDecoration: 'none' }}
           >
-            📥 Export Excel (.xlsx)
+            Export Excel (.xlsx)
           </a>
         </div>
       </div>

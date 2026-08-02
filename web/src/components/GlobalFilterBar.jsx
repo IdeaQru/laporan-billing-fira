@@ -49,17 +49,17 @@ export default function GlobalFilterBar({
     <div className="global-filter-bar">
       {/* 1. Month Selector */}
       <div className="filter-group">
-        <label className="filter-label">🗓️ Bulan</label>
+        <label className="filter-label">Bulan</label>
         <select
           className="filter-select"
           value={selectedMonth}
           onChange={(e) => setSelectedMonth(e.target.value)}
           id="global-month-select"
         >
-          <option value="ALL">🌐 Semua Bulan (Akumulasi)</option>
+          <option value="ALL">Semua Bulan (Akumulasi)</option>
           {months.map((m) => (
             <option key={m.code} value={m.code}>
-              📅 {m.label}
+              {m.label}
             </option>
           ))}
         </select>
@@ -67,7 +67,7 @@ export default function GlobalFilterBar({
 
       {/* 2. Multi-Select Location/Area Dropdown */}
       <div className="filter-group" ref={dropdownRef} style={{ position: 'relative' }}>
-        <label className="filter-label">🗺️ Lokasi / Area</label>
+        <label className="filter-label">Lokasi / Area</label>
         <button
           type="button"
           className="filter-select multi-select-trigger"
@@ -75,10 +75,10 @@ export default function GlobalFilterBar({
           id="global-area-multi-select"
         >
           {isAllAreasSelected
-            ? '🌐 Semua Area'
+            ? 'Semua Area'
             : selectedAreas.length === 1
-            ? `📍 ${selectedAreas[0]}`
-            : `📍 ${selectedAreas.length} Area Dipilih`}
+            ? selectedAreas[0]
+            : `${selectedAreas.length} Area Dipilih`}
           <span style={{ marginLeft: 8, fontSize: '0.7rem' }}>▼</span>
         </button>
 
@@ -86,10 +86,10 @@ export default function GlobalFilterBar({
           <div className="multi-select-dropdown">
             <div className="multi-select-header">
               <button type="button" className="text-btn" onClick={handleSelectAllAreas}>
-                ✓ Pilih Semua
+                Pilih Semua
               </button>
               <button type="button" className="text-btn danger" onClick={handleClearAreas}>
-                ✕ Bersihkan
+                Bersihkan
               </button>
             </div>
 
@@ -114,7 +114,7 @@ export default function GlobalFilterBar({
 
       {/* 3. Status Selector */}
       <div className="filter-group">
-        <label className="filter-label">🏷️ Status</label>
+        <label className="filter-label">Status</label>
         <select
           className="filter-select"
           value={selectedStatus}
@@ -131,7 +131,7 @@ export default function GlobalFilterBar({
 
       {/* 4. Search Bar */}
       <div className="filter-group search-group">
-        <label className="filter-label">🔍 Cari</label>
+        <label className="filter-label">Cari</label>
         <div className="search-wrapper">
           <input
             type="text"
@@ -154,7 +154,7 @@ export default function GlobalFilterBar({
           title="Reset semua filter"
           id="global-reset-btn"
         >
-          🔄 Reset
+          Reset Filter
         </button>
       </div>
     </div>

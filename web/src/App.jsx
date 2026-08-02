@@ -154,11 +154,11 @@ function Dashboard({ session, onLogout }) {
   return (
     <div className="app-container" style={{ paddingBottom: 80 }}>
       {/* Toast */}
-      {toast && <div className="toast-notification">✅ {toast}</div>}
+      {toast && <div className="toast-notification">{toast}</div>}
 
       {/* Header */}
       <header className="app-header">
-        <h1>📡 Dashboard Laporan WiFi Billing</h1>
+        <h1>Dashboard Laporan WiFi Billing</h1>
         <p>Analisis Per Bulan • Master Pelanggan • Filter Multi-Lokasi • Entri Data Web</p>
         {/* User badge + logout */}
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 12, marginTop: 12 }}>
@@ -169,7 +169,7 @@ function Dashboard({ session, onLogout }) {
             onClick={onLogout}
             style={{ fontSize: '0.75rem', background: 'rgba(244,63,94,0.12)', border: '1px solid rgba(244,63,94,0.25)', borderRadius: 99, padding: '4px 14px', color: '#fb7185', cursor: 'pointer', fontFamily: 'inherit' }}
           >
-            🚪 Keluar
+            Keluar
           </button>
         </div>
       </header>
@@ -193,10 +193,10 @@ function Dashboard({ session, onLogout }) {
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 16, marginBottom: 28, flexWrap: 'wrap' }}>
         <nav className="tab-nav" style={{ margin: 0 }} role="tablist">
           {[
-            { id: 'summary', label: '📊 Executive Summary' },
-            { id: 'table', label: '📋 Laporan Tagihan' },
-            { id: 'customers', label: '👥 Master Pelanggan' },
-            { id: 'expenses', label: '📤 Pengeluaran' },
+            { id: 'summary', label: 'Executive Summary' },
+            { id: 'table', label: 'Laporan Tagihan' },
+            { id: 'customers', label: 'Master Pelanggan' },
+            { id: 'expenses', label: 'Pengeluaran' },
           ].map((t) => (
             <button
               key={t.id}
@@ -209,7 +209,7 @@ function Dashboard({ session, onLogout }) {
           ))}
         </nav>
         <button className="btn btn-primary" onClick={() => handleOpenInputModal('customer')} style={{ height: 42 }}>
-          ✏️ Entri Data Baru
+          + Entri Data Baru
         </button>
       </div>
 

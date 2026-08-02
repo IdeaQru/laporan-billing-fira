@@ -93,24 +93,24 @@ export const generateDetailNarrative = ({
 
   return `RINGKASAN EKSEKUTIF LAPORAN BILLING WIFI
 
-📊 OVERVIEW KEUANGAN
+OVERVIEW KEUANGAN
 Dari total ${totalCustomers} pelanggan terdaftar, total pendapatan yang berhasil ditagih adalah ${formatRupiah(totalRevenuePaid)}, sementara total tunggakan yang belum terselesaikan sebesar ${formatRupiah(totalOutstanding)}. Total pengeluaran operasional tercatat sebesar ${formatRupiah(totalExpenses)}, sehingga saldo bersih (net balance) sebesar ${formatRupiah(netBalance)}.
 
-📈 EFISIENSI PENAGIHAN
+EFISIENSI PENAGIHAN
 Tingkat efisiensi penagihan saat ini berada di ${collectionEfficiency}%. Angka ini menunjukkan ${collectionEfficiency >= 80 ? 'performa penagihan yang baik' : collectionEfficiency >= 60 ? 'performa penagihan yang masih perlu ditingkatkan' : 'performa penagihan yang memerlukan perhatian serius dan tindakan segera'}.
 
-💳 METODE PEMBAYARAN
+METODE PEMBAYARAN
 Metode pembayaran yang paling banyak digunakan adalah ${topMethodStr}. Berikut rincian lengkap per metode:
 ${paymentBreakdown.map(p => `  • ${p.method}: ${formatRupiah(p.total)} (${p.percentage}%)`).join('\n')}
 
-🗺️ ANALISIS PER AREA
+ANALISIS PER AREA
 Area dengan tunggakan tertinggi: ${highestUnpaidArea}
 Area dengan tunggakan terendah: ${lowestUnpaidArea}
 
 Detail per area:
 ${areaDetails}
 
-📋 REKOMENDASI OPERASIONAL
+REKOMENDASI OPERASIONAL
 ${collectionEfficiency < 80
     ? `1. Fokuskan upaya penagihan pada area ${highestUnpaidArea} yang memiliki tunggakan tertinggi.
 2. Pertimbangkan strategi diskon pembayaran tepat waktu untuk meningkatkan efisiensi penagihan.
