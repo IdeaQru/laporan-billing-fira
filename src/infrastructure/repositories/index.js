@@ -737,3 +737,145 @@ export function getMonthlyHistory(customerCode) {
     return Err(`Database error in getMonthlyHistory: ${err.message}`);
   }
 }
+
+// ============================================================
+// Unpaid Customers Report List (For PDF Page 3+)
+// ============================================================
+export function getUnpaidReportList({ month = '2026-07', areas = [] } = {}) {
+  try {
+    const db = getReadonlyDatabase();
+    const areaList = parseAreasParam(areas);
+
+    let where = ["(i.status != 'LUNAS' OR LOWER(COALESCE(i.notes, '')) LIKE '%free%')"];
+    let params = [];
+
+    if (areaList.length > 0) {
+      const placeholders = areaList.map(() => '?').join(',');
+      where.push(`a.name IN (${placeholders})`);
+      params.push(...areaList);
+    }
+    if (month && month !== 'ALL') {
+      where.push("i.billing_period = ?");
+      params.push(month);
+    }
+
+    const whereClause = `WHERE ${where.join(' AND ')}`;
+
+    let query = `
+      SELECT
+        c.customer_code,
+        c.name as customer_name,
+        a.name as area_name,
+        COALESCE(p.speed_name, 'Standar') as package_name,
+        COALESCE(p.price, i.amount, 0) as package_price,
+        i.amount,
+        i.status,
+        i.unpaid_amount,
+        i.unpaid_months,
+        i.notes as keterangan
+      FROM invoices i
+      JOIN customers c ON i.customer_id = c.id
+      JOIN areas a ON c.area_id = a.id
+      LEFT JOIN packages p ON c.package_id = p.id
+      ${whereClause}
+      ORDER BY a.name ASC, c.customer_code ASC
+    `;
+
+    let rows = db.prepare(query).all(...params);
+
+    // Fallback to monthly_status_history if invoices has no records for historical month
+    if (rows.length === 0 && month && month !== 'ALL') {
+      let hWhere = ["LOWER(msh.status_text) NOT LIKE '%lunas%' OR LOWER(msh.status_text) LIKE '%free%'"];
+      let hParams = [];
+
+      if (areaList.length > 0) {
+        const placeholders = areaList.map(() => '?').join(',');
+        hWhere.push(`a.name IN (${placeholders})`);
+        hParams.push(...areaList);
+      }
+      hWhere.push("msh.month_year = ?");
+      hParams.push(month);
+
+      const hWhereClause = `WHERE ${hWhere.join(' AND ')}`;
+
+      const hQuery = `
+        SELECT
+          c.customer_code,
+          c.name as customer_name,
+          a.name as area_name,
+          COALESCE(p.speed_name, 'Standar') as package_name,
+          COALESCE(p.price, 100000) as package_price,
+          COALESCE(p.price, 100000) as amount,
+          'BELUM LUNAS' as status,
+          COALESCE(p.price, 100000) as unpaid_amount,
+          1 as unpaid_months,
+          msh.status_text as keterangan
+        FROM monthly_status_history msh
+        JOIN customers c ON msh.customer_id = c.id
+        JOIN areas a ON c.area_id = a.id
+        LEFT JOIN packages p ON c.package_id = p.id
+        ${hWhereClause}
+        ORDER BY a.name ASC, c.customer_code ASC
+      `;
+
+      rows = db.prepare(hQuery).all(...hParams);
+    }
+
+    db.close();
+
+    // Map rows and handle FREE status logic
+    let totalUnpaidCount = 0;
+    let totalUnpaidAmount = 0;
+    let totalFreeCount = 0;
+
+    const mappedCustomers = rows.map((row) => {
+      const ketLower = (row.keterangan || '').toLowerCase();
+      const statusLower = (row.status || '').toLowerCase();
+      const isFree = ketLower.includes('free') || statusLower.includes('free');
+
+      if (isFree) {
+        totalFreeCount++;
+        return {
+          customer_code: row.customer_code,
+          customer_name: row.customer_name,
+          area_name: row.area_name,
+          package_name: row.package_name,
+          package_price: row.package_price,
+          amount: row.amount,
+          unpaid_amount: 0,
+          unpaid_months: 0,
+          is_free: true,
+          status_label: 'FREE / GRATIS',
+          keterangan: row.keterangan || 'FREE (Gratis / Diskon)',
+        };
+      } else {
+        const unpaidVal = row.unpaid_amount > 0 ? row.unpaid_amount : (row.amount || row.package_price || 0);
+        totalUnpaidCount++;
+        totalUnpaidAmount += unpaidVal;
+        return {
+          customer_code: row.customer_code,
+          customer_name: row.customer_name,
+          area_name: row.area_name,
+          package_name: row.package_name,
+          package_price: row.package_price,
+          amount: row.amount,
+          unpaid_amount: unpaidVal,
+          unpaid_months: row.unpaid_months || 1,
+          is_free: false,
+          status_label: 'BELUM LUNAS',
+          keterangan: row.keterangan || 'Belum Lunas',
+        };
+      }
+    });
+
+    return Ok({
+      unpaidCustomers: mappedCustomers,
+      totalUnpaidCount,
+      totalUnpaidAmount,
+      totalFreeCount,
+    });
+  } catch (err) {
+    return Err(`Database error in getUnpaidReportList: ${err.message}`);
+  }
+}
+

@@ -17,12 +17,29 @@ export default function ExecutiveSummary({ data, selectedMonth, selectedAreas })
   const [showNarrative, setShowNarrative] = useState(true);
   const [showPdfModal, setShowPdfModal] = useState(false);
   const [trends, setTrends] = useState([]);
+  const [unpaidData, setUnpaidData] = useState(null);
+  const [loadingUnpaid, setLoadingUnpaid] = useState(false);
 
   useEffect(() => {
     api.getHistoricalTrends()
       .then(setTrends)
       .catch(console.error);
   }, []);
+
+  useEffect(() => {
+    if (showPdfModal) {
+      setLoadingUnpaid(true);
+      api.getUnpaidReportList({ month: selectedMonth, areas: selectedAreas })
+        .then((res) => {
+          setUnpaidData(res);
+          setLoadingUnpaid(false);
+        })
+        .catch((err) => {
+          console.error('Failed to fetch unpaid report list for PDF:', err);
+          setLoadingUnpaid(false);
+        });
+    }
+  }, [showPdfModal, selectedMonth, selectedAreas]);
 
   const {
     totalCustomers = 0,
@@ -365,6 +382,8 @@ export default function ExecutiveSummary({ data, selectedMonth, selectedAreas })
           data={data}
           selectedMonth={selectedMonth}
           selectedAreas={selectedAreas}
+          unpaidData={unpaidData}
+          loadingUnpaid={loadingUnpaid}
           onClose={() => setShowPdfModal(false)}
         />
       )}

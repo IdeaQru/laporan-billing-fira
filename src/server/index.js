@@ -15,6 +15,7 @@ import {
   getHistoricalTrends,
   getAvailableMonths,
   getCustomersList,
+  getUnpaidReportList,
   createCustomer,
   updateCustomer,
   updateInvoice,
@@ -174,6 +175,22 @@ app.get('/api/reports/table', (req, res) => {
     sortDir: sortDir || 'ASC',
     page: parseInt(page) || 1,
     limit: parseInt(limit) || 50,
+  });
+
+  if (!result.ok) {
+    return res.status(500).json({ error: result.error });
+  }
+  res.json(result.value);
+});
+
+// ============================================================
+// GET /api/reports/unpaid-list — Full unpaid list for PDF report (Page 3+)
+// ============================================================
+app.get('/api/reports/unpaid-list', (req, res) => {
+  const { month, areas } = req.query;
+  const result = getUnpaidReportList({
+    month: month || '2026-07',
+    areas: areas || [],
   });
 
   if (!result.ok) {

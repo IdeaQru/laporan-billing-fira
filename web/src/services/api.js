@@ -101,6 +101,9 @@ export const api = {
   getReportTable: ({ search, status, areas, month, sortBy, sortDir, page, limit } = {}) =>
     fetchApi('/reports/table', { search, status, areas, month, sortBy, sortDir, page, limit }),
 
+  getUnpaidReportList: ({ month, areas } = {}) =>
+    fetchApi('/reports/unpaid-list', { month, areas }),
+
   // ── Customers ──
   getCustomers: ({ search, areaId, page, limit } = {}) =>
     fetchApi('/customers', { search, areaId, page, limit }),

@@ -3,7 +3,7 @@ import { useRef } from 'react';
 const formatRupiah = (n) => `Rp ${Number(n || 0).toLocaleString('id-ID')}`;
 const formatNum = (n) => Number(n || 0).toLocaleString('id-ID');
 
-export default function PdfReportTemplate({ data, selectedMonth, selectedAreas, onClose }) {
+export default function PdfReportTemplate({ data, selectedMonth, selectedAreas, unpaidData, loadingUnpaid, onClose }) {
   const printRef = useRef(null);
 
   const {
@@ -35,12 +35,26 @@ export default function PdfReportTemplate({ data, selectedMonth, selectedAreas, 
   const sortedPayment = [...paymentBreakdown].sort((a, b) => b.total - a.total);
   const topPaymentMethod = sortedPayment[0];
 
+  // Calculate unpaid list pages (Page 3+)
+  const unpaidCustomers = unpaidData?.unpaidCustomers || [];
+  const ITEMS_PER_PAGE = 22;
+  const unpaidPages = [];
+  if (unpaidCustomers.length > 0) {
+    for (let i = 0; i < unpaidCustomers.length; i += ITEMS_PER_PAGE) {
+      unpaidPages.push(unpaidCustomers.slice(i, i + ITEMS_PER_PAGE));
+    }
+  } else {
+    unpaidPages.push([]);
+  }
+
+  const totalPages = 2 + unpaidPages.length;
+
   return (
     <div className="pdf-modal-overlay" onClick={onClose}>
       {/* Top Floating Control Bar */}
       <div className="pdf-control-bar" onClick={(e) => e.stopPropagation()}>
         <div style={{ color: '#f1f5f9', fontWeight: 600, fontSize: '0.95rem' }}>
-          Preview Laporan PDF A4 (2 Halaman) — {selectedMonth}
+          Preview Laporan PDF A4 ({totalPages} Halaman) — {selectedMonth}
         </div>
         <div style={{ display: 'flex', gap: 12 }}>
           <button className="btn btn-primary" onClick={handlePrint} style={{ height: 38, display: 'flex', alignItems: 'center', gap: 6 }}>
@@ -202,7 +216,7 @@ export default function PdfReportTemplate({ data, selectedMonth, selectedAreas, 
 
           {/* Footer Page 1 */}
           <div className="a4-footer">
-            <span>Halaman 1 dari 2 • Laporan WiFi Billing System</span>
+            <span>Halaman 1 dari {totalPages} • Laporan WiFi Billing System</span>
             <span>Dicetak secara otomatis pada {currentDate}</span>
           </div>
         </div>
@@ -221,7 +235,7 @@ export default function PdfReportTemplate({ data, selectedMonth, selectedAreas, 
                 </div>
               </div>
               <div className="a4-header-right">
-                <div className="a4-meta-tag">HALAMAN 2 DARI 2</div>
+                <div className="a4-meta-tag">HALAMAN 2 DARI {totalPages}</div>
                 <div className="a4-meta-date">Bulan: {selectedMonth}</div>
               </div>
             </div>
@@ -375,10 +389,122 @@ export default function PdfReportTemplate({ data, selectedMonth, selectedAreas, 
 
           {/* Footer Page 2 */}
           <div className="a4-footer">
-            <span>Halaman 2 dari 2 • Laporan WiFi Billing System</span>
+            <span>Halaman 2 dari {totalPages} • Laporan WiFi Billing System</span>
             <span>Dicetak secara otomatis pada {currentDate}</span>
           </div>
         </div>
+
+        {/* ================= PAGE 3+ (DAFTAR UNPAID & FREE) ================= */}
+        {unpaidPages.map((pageCustomers, pIdx) => {
+          const pageNum = 3 + pIdx;
+          const isLastUnpaidPage = pIdx === unpaidPages.length - 1;
+          const startRowNo = pIdx * ITEMS_PER_PAGE + 1;
+
+          return (
+            <div className={`a4-sheet page-${pageNum}`} key={pIdx}>
+              <div>
+                {/* Header Kop Page 3+ */}
+                <div className="a4-header">
+                  <div className="a4-header-left">
+                    <div className="a4-logo-badge">WIFI</div>
+                    <div>
+                      <h1 className="a4-title">DAFTAR DETAIL PELANGGAN MENUNGGAK & STATUS KHUSUS</h1>
+                      <p className="a4-subtitle">
+                        Periode: {selectedMonth === 'ALL' ? 'Semua Bulan' : `Bulan ${selectedMonth}`}
+                        {selectedAreas && selectedAreas.length > 0 ? ` • Area: ${selectedAreas.join(', ')}` : ''}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="a4-header-right">
+                    <div className="a4-meta-tag">HALAMAN {pageNum} DARI {totalPages}</div>
+                    <div className="a4-meta-date">Total Penunggak: {formatNum(unpaidData?.totalUnpaidCount || 0)} Plg</div>
+                  </div>
+                </div>
+
+                <div className="a4-divider" />
+
+                {loadingUnpaid ? (
+                  <div style={{ textAlign: 'center', padding: '40px 0', color: '#64748b' }}>
+                    Memuat data pelanggan menunggak...
+                  </div>
+                ) : pageCustomers.length === 0 ? (
+                  <div style={{ textAlign: 'center', padding: '50px 0', background: '#f8fafc', borderRadius: 8, border: '1px dashed #cbd5e1', marginTop: 20 }}>
+                    <div style={{ fontSize: '1.1rem', fontWeight: 700, color: '#059669', marginBottom: 6 }}>
+                      🎉 Tidak Ada Pelanggan Menunggak
+                    </div>
+                    <p style={{ fontSize: '0.85rem', color: '#64748b', margin: 0 }}>
+                      Seluruh pelanggan pada periode <strong>{selectedMonth}</strong> telah melunasi tagihan (100% Lunas).
+                    </p>
+                  </div>
+                ) : (
+                  <div className="a4-section" style={{ marginTop: 8 }}>
+                    <table className="a4-table mini-unpaid">
+                      <thead>
+                        <tr>
+                          <th style={{ width: 28, textAlign: 'center' }}>No</th>
+                          <th style={{ width: 75 }}>Kode Plg</th>
+                          <th>Nama Pelanggan</th>
+                          <th>Wilayah / Area</th>
+                          <th style={{ width: 85 }}>Paket / Tarif</th>
+                          <th style={{ width: 105, textAlign: 'right' }}>Tunggakan (Rp)</th>
+                          <th style={{ width: 100, textAlign: 'center' }}>Status / Ket</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {pageCustomers.map((cust, itemIdx) => {
+                          const rowNo = startRowNo + itemIdx;
+                          return (
+                            <tr key={itemIdx} className={cust.is_free ? 'row-free' : ''}>
+                              <td style={{ textAlign: 'center', color: '#64748b', fontSize: '0.7rem' }}>{rowNo}</td>
+                              <td><code style={{ fontSize: '0.72rem', fontWeight: 600, color: '#334155' }}>{cust.customer_code}</code></td>
+                              <td><strong style={{ fontSize: '0.75rem', color: '#0f172a' }}>{cust.customer_name}</strong></td>
+                              <td><span style={{ fontSize: '0.72rem', color: '#475569' }}>{cust.area_name}</span></td>
+                              <td style={{ fontSize: '0.7rem', color: '#64748b' }}>{formatRupiah(cust.package_price)}</td>
+                              <td style={{ textAlign: 'right', fontWeight: 700, fontSize: '0.75rem', color: cust.is_free ? '#0284c7' : '#dc2626' }}>
+                                {cust.is_free ? 'Rp 0' : formatRupiah(cust.unpaid_amount)}
+                              </td>
+                              <td style={{ textAlign: 'center' }}>
+                                {cust.is_free ? (
+                                  <span className="a4-badge free">FREE</span>
+                                ) : (
+                                  <span className="a4-badge low">TUNGGAKAN</span>
+                                )}
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+
+                {/* Summary Footer Box on the last page of unpaid list */}
+                {isLastUnpaidPage && !loadingUnpaid && unpaidCustomers.length > 0 && (
+                  <div className="a4-unpaid-summary-box">
+                    <div className="a4-unpaid-sum-item">
+                      <span className="a4-sum-label">TOTAL PELANGGAN MENUNGGAK:</span>
+                      <strong className="a4-sum-val red">{formatNum(unpaidData?.totalUnpaidCount || 0)} Pelanggan</strong>
+                    </div>
+                    <div className="a4-unpaid-sum-item">
+                      <span className="a4-sum-label">TOTAL NOMINAL TUNGGAKAN:</span>
+                      <strong className="a4-sum-val red">{formatRupiah(unpaidData?.totalUnpaidAmount || 0)}</strong>
+                    </div>
+                    <div className="a4-unpaid-sum-item">
+                      <span className="a4-sum-label">PELANGGAN STATUS FREE:</span>
+                      <strong className="a4-sum-val blue">{formatNum(unpaidData?.totalFreeCount || 0)} Pelanggan (Tidak Dihitung Utang)</strong>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Footer Page 3+ */}
+              <div className="a4-footer">
+                <span>Halaman {pageNum} dari {totalPages} • Laporan WiFi Billing System</span>
+                <span>Dicetak secara otomatis pada {currentDate}</span>
+              </div>
+            </div>
+          );
+        })}
 
       </div>
 
@@ -435,7 +561,7 @@ export default function PdfReportTemplate({ data, selectedMonth, selectedAreas, 
           page-break-after: always;
         }
 
-        .a4-sheet.page-2 {
+        .a4-sheet:last-child {
           page-break-after: auto;
         }
 
@@ -889,7 +1015,65 @@ export default function PdfReportTemplate({ data, selectedMonth, selectedAreas, 
           margin-top: 10px;
         }
 
-        /* PRINT MEDIA QUERY FOR EXACT 2-PAGE A4 PRINTING */
+        .a4-sheet:last-child {
+          page-break-after: auto;
+        }
+
+        .a4-badge.free {
+          background: #e0f2fe;
+          color: #0369a1;
+        }
+
+        .a4-unpaid-summary-box {
+          margin-top: 14px;
+          background: #f8fafc;
+          border: 1px solid #cbd5e1;
+          border-radius: 8px;
+          padding: 10px 14px;
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+        }
+
+        .a4-unpaid-sum-item {
+          display: flex;
+          flex-direction: column;
+          gap: 2px;
+        }
+
+        .a4-sum-label {
+          font-size: 0.62rem;
+          font-weight: 700;
+          color: #64748b;
+          letter-spacing: 0.04em;
+        }
+
+        .a4-sum-val.red {
+          font-size: 0.88rem;
+          font-weight: 800;
+          color: #dc2626;
+        }
+
+        .a4-sum-val.blue {
+          font-size: 0.88rem;
+          font-weight: 800;
+          color: #0284c7;
+        }
+
+        .a4-table.mini-unpaid th {
+          padding: 5px 6px;
+          font-size: 0.65rem;
+        }
+
+        .a4-table.mini-unpaid td {
+          padding: 4px 6px;
+        }
+
+        .row-free {
+          background-color: #f0f9ff;
+        }
+
+        /* PRINT MEDIA QUERY FOR DYNAMIC A4 PRINTING */
         @media print {
           body * {
             visibility: hidden;
@@ -919,7 +1103,7 @@ export default function PdfReportTemplate({ data, selectedMonth, selectedAreas, 
             padding: 12mm 14mm 10mm;
             page-break-after: always;
           }
-          .a4-sheet.page-2 {
+          .a4-sheet:last-child {
             page-break-after: auto;
           }
           @page {
