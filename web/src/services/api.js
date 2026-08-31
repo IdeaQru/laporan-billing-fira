@@ -147,6 +147,69 @@ export const api = {
     return res.json();
   },
 
+  // ── Excel Engine Methods (Inspection & Atomic Execution) ──
+  inspectExcel: async (file) => {
+    const token = getToken();
+    const baseUrl = getBaseUrl();
+    const arrayBuffer = await file.arrayBuffer();
+    const res = await fetch(`${baseUrl}/excel/inspect`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/octet-stream',
+        'Authorization': token ? `Bearer ${token}` : '',
+        'X-Filename': encodeURIComponent(file.name),
+      },
+      body: arrayBuffer,
+    });
+    if (!res.ok) {
+      const errJson = await res.json().catch(() => ({ error: 'Gagal menganalisis file Excel' }));
+      throw new Error(errJson.error || 'Gagal menganalisis berkas Excel');
+    }
+    return res.json();
+  },
+
+  executeExcelUpdate: async (file, { strategy = 'FULL_REBUILD', targetPeriod = '' } = {}) => {
+    const token = getToken();
+    const baseUrl = getBaseUrl();
+    const url = new URL(`${baseUrl}/excel/execute`);
+    if (strategy) url.searchParams.set('strategy', strategy);
+    if (targetPeriod) url.searchParams.set('targetPeriod', targetPeriod);
+
+    const arrayBuffer = await file.arrayBuffer();
+    const res = await fetch(url.toString(), {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/octet-stream',
+        'Authorization': token ? `Bearer ${token}` : '',
+        'X-Filename': encodeURIComponent(file.name),
+      },
+      body: arrayBuffer,
+    });
+    if (!res.ok) {
+      const errJson = await res.json().catch(() => ({ error: 'Eksekusi pembaruan database gagal' }));
+      throw new Error(errJson.error || 'Gagal memperbarui database');
+    }
+    return res.json();
+  },
+
+  getTemplateDownloadUrl: (type = 'multi-sheet') => {
+    const baseUrl = getBaseUrl();
+    const token = getToken();
+    return `${baseUrl}/excel/templates/${type}${token ? `?token=${token}` : ''}`;
+  },
+
+  getBackupDownloadUrl: () => {
+    const baseUrl = getBaseUrl();
+    const token = getToken();
+    return `${baseUrl}/excel/backup/download${token ? `?token=${token}` : ''}`;
+  },
+
+  getFullDashboardDownloadUrl: () => {
+    const baseUrl = getBaseUrl();
+    const token = getToken();
+    return `${baseUrl}/reports/export/dashboard-full${token ? `?token=${token}` : ''}`;
+  },
+
   // ── Export ──
   getExportUrl: ({ search, status, areas, month } = {}) => {
     const baseUrl = getBaseUrl();

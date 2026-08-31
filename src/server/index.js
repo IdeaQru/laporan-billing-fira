@@ -32,6 +32,10 @@ import {
 import ExcelJS from 'exceljs';
 import { migrate } from '../infrastructure/etl/migrate_excel_to_sqlite.js';
 import { generateDashboardExcel } from '../infrastructure/etl/generate_dashboard_excel.js';
+import { inspectExcelFile } from '../application/excel/inspectExcelUseCase.js';
+import { executeExcelUpdate } from '../application/excel/executeExcelUpdateUseCase.js';
+import { generateMultiSheetTemplate, generateSingleSheetTemplate } from '../application/excel/templateGeneratorUseCase.js';
+import { resolveDbPath } from '../infrastructure/database/connection.js';
 import { existsSync, writeFileSync, mkdirSync, copyFileSync } from 'fs';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
@@ -39,7 +43,6 @@ import { fileURLToPath } from 'url';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname  = dirname(__filename);
 const ROOT       = join(__dirname, '..', '..');
-
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -520,6 +523,108 @@ app.post('/api/upload-excel', express.raw({ type: '*/*', limit: '50mb' }), async
   } catch (err) {
     console.error('Error during upload-excel:', err);
     res.status(500).json({ error: `Gagal memproses file Excel: ${err.message}` });
+  }
+});
+
+// ============================================================
+// EXCEL PROCESSING ENGINE ENDPOINTS (Senior Architecture)
+// ============================================================
+
+// 1. POST /api/excel/inspect — Dry-Run Pre-flight Inspection & Preview
+app.post('/api/excel/inspect', express.raw({ type: '*/*', limit: '50mb' }), (req, res) => {
+  try {
+    if (!req.body || req.body.length === 0) {
+      return res.status(400).json({ error: 'File Excel tidak boleh kosong.' });
+    }
+
+    const result = inspectExcelFile(req.body);
+    if (!result.ok) {
+      return res.status(400).json({ error: result.error });
+    }
+
+    const { formatInfo, sheetNames, detectedAreas, periods, summary, analysis } = result.value;
+
+    res.json({
+      formatInfo,
+      sheetNames,
+      detectedAreas,
+      periods,
+      summary,
+      analysis,
+      fileSizeBytes: req.body.length,
+    });
+  } catch (err) {
+    console.error('Error in /api/excel/inspect:', err);
+    res.status(500).json({ error: `Gagal menganalisis file Excel: ${err.message}` });
+  }
+});
+
+// 2. POST /api/excel/execute — Atomic Database Mutation & Dashboard Sync
+app.post('/api/excel/execute', express.raw({ type: '*/*', limit: '50mb' }), async (req, res) => {
+  try {
+    if (!req.body || req.body.length === 0) {
+      return res.status(400).json({ error: 'File Excel tidak boleh kosong.' });
+    }
+
+    const { strategy, targetPeriod } = req.query;
+
+    const result = await executeExcelUpdate(req.body, {
+      strategy: strategy || 'FULL_REBUILD',
+      targetPeriod: targetPeriod || '',
+    });
+
+    if (!result.ok) {
+      return res.status(400).json({ error: result.error });
+    }
+
+    res.json(result.value);
+  } catch (err) {
+    console.error('Error in /api/excel/execute:', err);
+    res.status(500).json({ error: `Gagal mengeksekusi pembaruan database: ${err.message}` });
+  }
+});
+
+// 3. GET /api/excel/templates/:type — Download Standard Excel Templates
+app.get('/api/excel/templates/:type', async (req, res) => {
+  try {
+    const type = req.params.type;
+    let workbook = null;
+    let filename = 'template_wifi_billing.xlsx';
+
+    if (type === 'single-sheet') {
+      workbook = await generateSingleSheetTemplate();
+      filename = 'template_rekap_tagihan_single_sheet.xlsx';
+    } else {
+      workbook = await generateMultiSheetTemplate();
+      filename = 'template_area_matrix_multi_sheet.xlsx';
+    }
+
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    res.setHeader('Content-Disposition', `attachment; filename=${filename}`);
+
+    await workbook.xlsx.write(res);
+    res.end();
+  } catch (err) {
+    console.error('Error generating template:', err);
+    res.status(500).json({ error: `Gagal menghasilkan template: ${err.message}` });
+  }
+});
+
+// 4. GET /api/excel/backup/download — Download Database Backup Snapshot
+app.get('/api/excel/backup/download', (req, res) => {
+  try {
+    const dbPath = resolveDbPath();
+    if (!existsSync(dbPath)) {
+      return res.status(404).json({ error: 'Database tidak ditemukan.' });
+    }
+
+    const dateStr = new Date().toISOString().slice(0, 10);
+    res.setHeader('Content-Type', 'application/vnd.sqlite3');
+    res.setHeader('Content-Disposition', `attachment; filename=wifi_billing_backup_${dateStr}.db`);
+    res.download(dbPath);
+  } catch (err) {
+    console.error('Error downloading backup:', err);
+    res.status(500).json({ error: `Gagal mengunduh backup: ${err.message}` });
   }
 });
 

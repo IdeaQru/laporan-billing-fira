@@ -8,6 +8,7 @@ import CustomerMasterView from './components/CustomerMasterView';
 import ExpensesView from './components/ExpensesView';
 import DataInputModal from './components/DataInputModal';
 import MobileNavigation from './components/MobileNavigation';
+import ExcelEngineView from './components/ExcelEngineView';
 
 // ── Auth helpers ──────────────────────────────────────────────
 function getStoredSession() {
@@ -220,6 +221,27 @@ function Dashboard({ session, onLogout }) {
           />
 
           <button
+            onClick={() => setActiveTab('excel')}
+            style={{
+              fontSize: '0.8rem',
+              background: 'linear-gradient(135deg, #6366f1, #4f46e5)',
+              border: 'none',
+              borderRadius: 99,
+              padding: '4px 16px',
+              color: '#ffffff',
+              cursor: 'pointer',
+              fontWeight: 600,
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 6,
+              boxShadow: '0 2px 8px rgba(99,102,241,0.35)',
+              fontFamily: 'inherit',
+            }}
+          >
+            ⚡ Studio Engine Excel
+          </button>
+
+          <button
             onClick={handleUploadClick}
             disabled={uploading || syncing}
             style={{
@@ -238,7 +260,7 @@ function Dashboard({ session, onLogout }) {
               fontFamily: 'inherit',
             }}
           >
-            {uploading ? '📁 Mengunggah...' : '📁 Upload Excel Baru'}
+            {uploading ? '📁 Mengunggah...' : '📁 Upload Cepat'}
           </button>
 
           <button
@@ -260,7 +282,7 @@ function Dashboard({ session, onLogout }) {
               fontFamily: 'inherit',
             }}
           >
-            {syncing ? '🔄 Menyinkronkan...' : '🔄 Synchronize Database'}
+            {syncing ? '🔄 Menyinkronkan...' : '🔄 Sinkronisasi Cepat'}
           </button>
           <button
             onClick={onLogout}
@@ -295,6 +317,7 @@ function Dashboard({ session, onLogout }) {
             { id: 'table', label: 'Laporan Tagihan' },
             { id: 'customers', label: 'Master Pelanggan' },
             { id: 'expenses', label: 'Pengeluaran' },
+            { id: 'excel', label: '⚡ Engine Excel' },
           ].map((t) => (
             <button
               key={t.id}
@@ -338,6 +361,9 @@ function Dashboard({ session, onLogout }) {
           )}
           {activeTab === 'expenses' && (
             <ExpensesView selectedMonth={selectedMonth} onOpenInputModal={handleOpenInputModal} />
+          )}
+          {activeTab === 'excel' && (
+            <ExcelEngineView onDataUpdated={handleDataSuccess} />
           )}
         </>
       )}

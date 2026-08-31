@@ -3,3 +3,8 @@ web/node_modules/
 web/dist/
 .env
 web/.env
+*.db-wal
+*.db-shm
+data/backups/
+scratch_*.js
+.vercel

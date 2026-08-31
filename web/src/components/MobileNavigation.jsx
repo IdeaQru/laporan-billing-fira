@@ -40,6 +40,14 @@ export default function MobileNavigation({ activeTab, setActiveTab, onOpenInputM
         <span className="icon">📤</span>
         <span className="label">Pengeluaran</span>
       </button>
+
+      <button
+        className={`mobile-nav-btn ${activeTab === 'excel' ? 'active' : ''}`}
+        onClick={() => setActiveTab('excel')}
+      >
+        <span className="icon">⚡</span>
+        <span className="label">Engine</span>
+      </button>
     </nav>
   );
 }
