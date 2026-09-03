@@ -143,12 +143,21 @@ export function commitFullRebuild(parsedData) {
       }
     }
 
-    // 8. Official July 2026 expenses
+    // 8. Official July & August 2026 expenses
     const officialExpenses = [
+      // Juli 2026 (Total: Rp 1.130.000)
       { date: '2026-07-13', description: 'fee mas fany', amount: 280000, category: 'FEE' },
       { date: '2026-07-13', description: 'fee mba ida', amount: 560000, category: 'FEE' },
       { date: '2026-07-17', description: 'fee mas fany', amount: 230000, category: 'FEE' },
       { date: '2026-07-31', description: 'fee mas fany', amount: 60000, category: 'FEE' },
+      // Agustus 2026 (Total: Rp 1.515.000)
+      { date: '2026-08-14', description: 'fee mas fany', amount: 335000, category: 'FEE' },
+      { date: '2026-08-16', description: 'fee mas fany', amount: 180000, category: 'FEE' },
+      { date: '2026-08-16', description: 'fee mba ida', amount: 575000, category: 'FEE' },
+      { date: '2026-08-16', description: 'fee mba dita', amount: 285000, category: 'FEE' },
+      { date: '2026-08-16', description: 'fee mba dita', amount: 35000, category: 'FEE' },
+      { date: '2026-08-23', description: 'fee mas fany', amount: 60000, category: 'FEE' },
+      { date: '2026-08-24', description: 'fee mba yeni', amount: 45000, category: 'FEE' },
     ];
     for (const exp of officialExpenses) {
       insertExp.run(exp.date, exp.description, exp.amount, exp.category);
