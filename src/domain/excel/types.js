@@ -41,6 +41,7 @@ export const OFFICIAL_AREAS = Object.freeze({
   PLK: { code: 'PLK', name: 'Palpakis', aliases: ['palpakis', 'plk'] },
   SWT: { code: 'SWT', name: 'Sumberwatu', aliases: ['sumberwatu', 'sumberwatu_swatu', 'swatu', 'sumber watu'] },
   TMS: { code: 'TMS', name: 'Tamansari', aliases: ['tamansari', 'tms', 'taman sari'] },
+  KBD: { code: 'KBD', name: 'Kebundadap', aliases: ['kebundadap', 'kbd', 'kebun dadap', 'kebun_dadap', 'bondadap'] },
 });
 
 /**

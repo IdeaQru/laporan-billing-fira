@@ -142,6 +142,24 @@ export function scanSheetBoundaries(rows = []) {
   for (let r = firstRowIdx; r < rows.length; r++) {
     const row = rows[r] || [];
     const nameVal = safeStr(row[nameColIdx]);
+    const colAVal = safeStr(row[0]);
+    const rowFullStr = row.map(c => safeStr(c).toUpperCase()).join(' ');
+
+    // Stop if encountering totals, recap, or admin footer notes
+    if (
+      rowFullStr.includes('TOTAL') ||
+      rowFullStr.includes('JUMLAH') ||
+      rowFullStr.includes('REKAP') ||
+      nameVal.toUpperCase().includes('TOTAL') ||
+      nameVal.toUpperCase().includes('JUMLAH') ||
+      nameVal.toUpperCase().includes('REKAP') ||
+      (nameVal.toUpperCase().includes('LUNAS') && !colAVal) ||
+      rowFullStr.includes('APLIKASI/ADMIN') ||
+      rowFullStr.includes('SS TF BY WA')
+    ) {
+      break;
+    }
+
     if (!nameVal) {
       // Check if subsequent rows also empty
       const next1 = safeStr((rows[r + 1] || [])[nameColIdx]);
@@ -149,9 +167,7 @@ export function scanSheetBoundaries(rows = []) {
       if (!next1 && !next2) break;
       continue;
     }
-    if (nameVal.toUpperCase().includes('TOTAL') || nameVal.toUpperCase().includes('JUMLAH') || nameVal.toUpperCase().includes('REKAP')) {
-      break;
-    }
+
     lastRowIdx = r;
   }
 
@@ -262,6 +278,36 @@ export function parseMultiSheetAreaMatrix(sheetsData, options = {}) {
         let isLunas = false;
         let paymentMethod = 'BRI';
 
+        // Check for numeric abbreviated payments (e.g. 50 -> 50.000, 90 -> 90.000, 50k -> 50.000)
+        let nominalPaid = null;
+        const kMatch = valStr.match(/^(\d+)\s*k$/i);
+        if (kMatch) {
+          const n = Number(kMatch[1]);
+          if (n >= 10 && n <= 1000) {
+            nominalPaid = n * 1000;
+          }
+        } else if (!isNaN(Number(valStr)) && valStr !== '') {
+          const num = Number(valStr);
+          if (num >= 20 && num <= 999) {
+            nominalPaid = num * 1000;
+          } else if (num >= 10000 && num <= 2000000) {
+            nominalPaid = num;
+          }
+        }
+
+        const isUnpaid = (
+          !rawCell ||
+          rawCell === '' ||
+          valStr === '' ||
+          valStr === '-' ||
+          valStr === '0' ||
+          valStr === ';' ||
+          valStr === 'belum' ||
+          valStr === 'isolir' ||
+          valStr === 'off' ||
+          valStr.includes('(belum)')
+        );
+
         if (valStr === 'free' || valStr === 'gratis' || valStr.includes('diskon')) {
           status = 'FREE';
           unpaidAmount = 0;
@@ -269,23 +315,26 @@ export function parseMultiSheetAreaMatrix(sheetsData, options = {}) {
           notes = safeStr(rawCell) || 'FREE';
           totalFree++;
           sheetFree++;
-        } else if (
-          !rawCell ||
-          rawCell === '' ||
-          valStr === '' ||
-          valStr === '-' ||
-          valStr === '0' ||
-          valStr === 'belum' ||
-          valStr === 'isolir'
-        ) {
-          status = valStr === 'isolir' ? 'ISOLIR' : 'BELUM LUNAS';
+        } else if (isUnpaid) {
+          status = valStr === 'isolir' ? 'ISOLIR' : (valStr === 'off' ? 'OFF' : 'BELUM LUNAS');
           unpaidAmount = basePrice;
           unpaidMonths = 1;
-          notes = valStr === 'isolir' ? 'ISOLIR' : 'Belum Lunas';
+          notes = status === 'BELUM LUNAS' ? 'Belum Lunas' : status;
           totalUnpaid++;
           sheetUnpaid++;
+        } else if (nominalPaid !== null) {
+          // Dynamic numeric payment (e.g. 50 = Rp 50.000, 90 = Rp 90.000)
+          isLunas = true;
+          status = 'LUNAS';
+          invoiceAmount = nominalPaid;
+          unpaidAmount = 0;
+          unpaidMonths = 0;
+          notes = safeStr(rawCell);
+          paymentMethod = classifyPaymentMethod(notes);
+          totalLunas++;
+          sheetLunas++;
         } else {
-          // LUNAS
+          // LUNAS (handles "lunas", typos "lumas", "luas", "unas", dates, payment descriptions)
           isLunas = true;
           status = 'LUNAS';
           unpaidAmount = 0;
