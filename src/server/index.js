@@ -82,6 +82,14 @@ function requireAuth(req, res, next) {
 app.use(cors({ origin: '*' }));
 app.use(express.json());
 
+// Prevent HTTP/CDN Caching on API responses
+app.use((req, res, next) => {
+  res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+  res.setHeader('Pragma', 'no-cache');
+  res.setHeader('Expires', '0');
+  next();
+});
+
 // ============================================================
 // POST /api/auth/login — Public (no auth required)
 // ============================================================
@@ -131,7 +139,7 @@ app.get('/api/months', (req, res) => {
 app.get('/api/dashboard/summary', (req, res) => {
   const { month, areas, status } = req.query;
   const result = getDashboardSummary({
-    month: month || '2026-07',
+    month: month || '2026-08',
     areas: areas || [],
     status: status || '',
   });

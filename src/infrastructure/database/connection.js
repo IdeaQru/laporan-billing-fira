@@ -43,7 +43,20 @@ export function resolveDbPath() {
     const tmpDbPath = join(tmpDir, 'wifi_billing.db');
     if (foundSource) {
       try {
-        if (!fs.existsSync(tmpDbPath)) {
+        let needsCopy = !fs.existsSync(tmpDbPath);
+        if (!needsCopy) {
+          try {
+            const srcStat = fs.statSync(foundSource);
+            const tmpStat = fs.statSync(tmpDbPath);
+            if (srcStat.size !== tmpStat.size || srcStat.mtimeMs > tmpStat.mtimeMs) {
+              needsCopy = true;
+            }
+          } catch {
+            needsCopy = true;
+          }
+        }
+
+        if (needsCopy) {
           fs.copyFileSync(foundSource, tmpDbPath);
           if (fs.existsSync(foundSource + '-wal')) {
             fs.copyFileSync(foundSource + '-wal', tmpDbPath + '-wal');

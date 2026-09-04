@@ -28,6 +28,7 @@ async function fetchApi(endpoint, params = {}) {
 
   const token = getToken();
   const res = await fetch(url.toString(), {
+    cache: 'no-store',
     headers: token ? { Authorization: `Bearer ${token}` } : {},
   });
 
