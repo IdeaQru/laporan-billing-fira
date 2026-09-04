@@ -41,20 +41,25 @@ export function resolveDbPath() {
   if (isServerless) {
     const tmpDir = os.tmpdir();
     const tmpDbPath = join(tmpDir, 'wifi_billing.db');
+    const versionFile = join(tmpDir, 'db_version.txt');
+
     if (foundSource) {
       try {
-        let needsCopy = !fs.existsSync(tmpDbPath);
-        if (!needsCopy) {
+        const srcStat = fs.statSync(foundSource);
+        const currentVersion = process.env.VERCEL_GIT_COMMIT_SHA ||
+          process.env.VERCEL_DEPLOYMENT_ID ||
+          `${srcStat.size}_${srcStat.mtimeMs}`;
+
+        let lastVersion = '';
+        if (fs.existsSync(versionFile)) {
           try {
-            const srcStat = fs.statSync(foundSource);
-            const tmpStat = fs.statSync(tmpDbPath);
-            if (srcStat.size !== tmpStat.size || srcStat.mtimeMs > tmpStat.mtimeMs) {
-              needsCopy = true;
-            }
+            lastVersion = fs.readFileSync(versionFile, 'utf8').trim();
           } catch {
-            needsCopy = true;
+            lastVersion = '';
           }
         }
+
+        const needsCopy = !fs.existsSync(tmpDbPath) || lastVersion !== currentVersion;
 
         if (needsCopy) {
           fs.copyFileSync(foundSource, tmpDbPath);
@@ -63,6 +68,11 @@ export function resolveDbPath() {
           }
           if (fs.existsSync(foundSource + '-shm')) {
             fs.copyFileSync(foundSource + '-shm', tmpDbPath + '-shm');
+          }
+          try {
+            fs.writeFileSync(versionFile, currentVersion, 'utf8');
+          } catch {
+            // Ignore write errors on version file
           }
         }
         return tmpDbPath;
