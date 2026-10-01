@@ -276,7 +276,7 @@ export function parseMultiSheetAreaMatrix(sheetsData, options = {}) {
         let unpaidMonths = 1;
         let notes = 'Belum Lunas';
         let isLunas = false;
-        let paymentMethod = 'BRI';
+        let paymentMethod = 'CASH';
 
         // Check for numeric abbreviated payments (e.g. 50 -> 50.000, 90 -> 90.000, 50k -> 50.000)
         let nominalPaid = null;
@@ -303,12 +303,12 @@ export function parseMultiSheetAreaMatrix(sheetsData, options = {}) {
           valStr === '0' ||
           valStr === ';' ||
           valStr === 'belum' ||
-          valStr === 'isolir' ||
-          valStr === 'off' ||
+          valStr.includes('isolir') ||
+          valStr.includes('off') ||
           valStr.includes('(belum)')
         );
 
-        if (valStr === 'free' || valStr === 'gratis' || valStr.includes('diskon')) {
+        if (valStr.includes('free') || valStr.includes('gratis') || valStr.includes('diskon')) {
           status = 'FREE';
           unpaidAmount = 0;
           unpaidMonths = 0;
@@ -316,7 +316,7 @@ export function parseMultiSheetAreaMatrix(sheetsData, options = {}) {
           totalFree++;
           sheetFree++;
         } else if (isUnpaid) {
-          status = valStr === 'isolir' ? 'ISOLIR' : (valStr === 'off' ? 'OFF' : 'BELUM LUNAS');
+          status = valStr.includes('isolir') ? 'ISOLIR' : (valStr.includes('off') ? 'OFF' : 'BELUM LUNAS');
           unpaidAmount = basePrice;
           unpaidMonths = 1;
           notes = status === 'BELUM LUNAS' ? 'Belum Lunas' : status;

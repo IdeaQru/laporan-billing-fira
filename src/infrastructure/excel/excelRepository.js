@@ -128,7 +128,7 @@ export function commitFullRebuild(parsedData) {
 
       if (inv.isLunas || inv.status === 'LUNAS') {
         const payDate = `${inv.billingPeriod}-15`;
-        insertPay.run(invoiceId, inv.paymentMethod || 'BRI', inv.amount, payDate, inv.notes);
+        insertPay.run(invoiceId, inv.paymentMethod || 'CASH', inv.amount, payDate, inv.notes);
         totalPays++;
       }
     }
@@ -198,6 +198,11 @@ export function commitIncrementalUpsert(parsedData) {
   let updatedPays = 0;
 
   const transaction = db.transaction(() => {
+    const insertArea = db.prepare('INSERT OR IGNORE INTO areas (code, name, source_file) VALUES (?, ?, ?)');
+    for (const info of Object.values(OFFICIAL_AREAS)) {
+      insertArea.run(info.code, info.name, 'Excel Import');
+    }
+
     const getAreaId = db.prepare('SELECT id FROM areas WHERE code = ?');
     const getPkgId = db.prepare('SELECT id FROM packages WHERE code = ?');
     const getCust = db.prepare('SELECT id FROM customers WHERE customer_code = ?');
@@ -263,7 +268,7 @@ export function commitIncrementalUpsert(parsedData) {
       deletePays.run(invoiceId);
       if (inv.isLunas || inv.status === 'LUNAS') {
         const payDate = `${inv.billingPeriod}-15`;
-        insertPay.run(invoiceId, inv.paymentMethod || 'BRI', inv.amount, payDate, inv.notes);
+        insertPay.run(invoiceId, inv.paymentMethod || 'CASH', inv.amount, payDate, inv.notes);
         updatedPays++;
       }
     }

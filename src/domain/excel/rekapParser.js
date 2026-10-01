@@ -174,7 +174,7 @@ export function parseSingleSheetBillingRekap(rows = [], options = {}) {
     let unpaidAmount = colMap.unpaidAmount !== -1 ? safeNum(row[colMap.unpaidAmount], basePrice) : basePrice;
     let unpaidMonths = colMap.unpaidMonths !== -1 ? safeNum(row[colMap.unpaidMonths], 1) : 1;
     let isLunas = false;
-    let paymentMethod = 'BRI';
+    let paymentMethod = 'CASH';
 
     if (combinedStatusText.toLowerCase().includes('free') || combinedStatusText.toLowerCase().includes('gratis')) {
       status = 'FREE';
@@ -197,6 +197,8 @@ export function parseSingleSheetBillingRekap(rows = [], options = {}) {
         paymentMethod = 'MANDIRI';
       } else if (bniVal >= briVal && bniVal > 0) {
         paymentMethod = 'BNI';
+      } else if (briVal > 0) {
+        paymentMethod = 'BRI';
       } else {
         paymentMethod = classifyPaymentMethod(combinedStatusText);
       }

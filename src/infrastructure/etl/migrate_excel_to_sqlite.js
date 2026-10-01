@@ -13,8 +13,13 @@ const __dirname = dirname(__filename);
 const ROOT = join(__dirname, '..', '..', '..');
 
 // -- Dynamic Path Resolvers --
-function resolveLaporanPath() {
+function resolveLaporanPath(customPath) {
+  if (customPath && existsSync(customPath)) return customPath;
+  if (process.argv[2] && existsSync(process.argv[2])) return process.argv[2];
+
   const candidates = [
+    join(ROOT, 'laporan_september.xls'),
+    join(ROOT, 'data', 'raw', 'laporan_september.xls'),
     join(ROOT, 'laporan agustusfix.xls'),
     join(ROOT, 'data', 'raw', 'laporan agustusfix.xls'),
     join(ROOT, 'laporan hadissss.xls'),
@@ -32,7 +37,7 @@ function resolveLaporanPath() {
   if (existsSync(rawDir)) {
     const files = readdirSync(rawDir);
     const found = files.find(f =>
-      (f.toLowerCase().includes('laporan') || f.toLowerCase().includes('fix'))
+      (f.toLowerCase().includes('september') || f.toLowerCase().includes('laporan') || f.toLowerCase().includes('fix'))
       && (f.endsWith('.xls') || f.endsWith('.xlsx'))
       && !f.toLowerCase().includes('dashboard')
     );
@@ -44,8 +49,8 @@ function resolveLaporanPath() {
 /**
  * Main migration entry point
  */
-async function migrate() {
-  const LAPORAN_PATH = resolveLaporanPath();
+async function migrate(targetFile) {
+  const LAPORAN_PATH = resolveLaporanPath(targetFile);
   if (!existsSync(LAPORAN_PATH)) {
     throw new Error(`File Excel tidak ditemukan: ${LAPORAN_PATH}`);
   }

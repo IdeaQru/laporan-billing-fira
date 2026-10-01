@@ -42,6 +42,7 @@ export const OFFICIAL_AREAS = Object.freeze({
   SWT: { code: 'SWT', name: 'Sumberwatu', aliases: ['sumberwatu', 'sumberwatu_swatu', 'swatu', 'sumber watu'] },
   TMS: { code: 'TMS', name: 'Tamansari', aliases: ['tamansari', 'tms', 'taman sari'] },
   KBD: { code: 'KBD', name: 'Kebundadap', aliases: ['kebundadap', 'kbd', 'kebun dadap', 'kebun_dadap', 'bondadap'] },
+  AMP: { code: 'AMP', name: 'Ampelgading', aliases: ['ampelgading', 'amp', 'apg', 'ampel gading', 'ampel_gading'] },
 });
 
 /**
@@ -130,14 +131,18 @@ export function parseBillingPeriod(val) {
 
 /**
  * Normalizes payment methods
+ * Rule: "lunas = cas , bri dan tf ada keterangan tambahan disana"
+ * Plain "lunas" / "cas" / "cash" / "tunai" / numbers -> CASH
+ * If notes specify bank or transfer -> BCA, BNI, MANDIRI, BRI (tf default)
  * @param {any} raw
  * @returns {'CASH' | 'BCA' | 'BRI' | 'MANDIRI' | 'BNI'}
  */
 export function classifyPaymentMethod(raw) {
-  const t = String(raw || '').toLowerCase();
-  if (t.includes('cash') || t.includes('tunai')) return 'CASH';
+  const t = String(raw || '').toLowerCase().trim();
   if (t.includes('bca')) return 'BCA';
   if (t.includes('bni')) return 'BNI';
   if (t.includes('mandiri')) return 'MANDIRI';
-  return 'BRI'; // Default transfer / general
+  if (t.includes('bri')) return 'BRI';
+  if (t.includes('tf') || t.includes('rf') || t.includes('transfer')) return 'BRI';
+  return 'CASH';
 }
