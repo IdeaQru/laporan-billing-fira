@@ -121,13 +121,13 @@ export function getDashboardSummary({ month = '2026-09', areas = [], status = ''
     `;
     let totalPaid = db.prepare(paidQuery).get(...invParams).total;
 
-    // Total outstanding (only BELUM LUNAS / ISOLIR with unpaid_amount > 0)
+    // Total outstanding (only BELUM LUNAS / ISOLIR with unpaid_amount > 0, excluding SUDAH OFF)
     const outstandingQuery = `
       SELECT COALESCE(SUM(i.unpaid_amount), 0) as total
       FROM invoices i
       JOIN customers c ON i.customer_id = c.id
       JOIN areas a ON c.area_id = a.id
-      ${invWhereClause ? invWhereClause + " AND i.status NOT IN ('LUNAS', 'FREE')" : "WHERE i.status NOT IN ('LUNAS', 'FREE')"}
+      ${invWhereClause ? invWhereClause + " AND i.status NOT IN ('LUNAS', 'FREE', 'SUDAH OFF', 'OFF')" : "WHERE i.status NOT IN ('LUNAS', 'FREE', 'SUDAH OFF', 'OFF')"}
     `;
     let totalOutstanding = db.prepare(outstandingQuery).get(...invParams).total;
 
@@ -157,7 +157,7 @@ export function getDashboardSummary({ month = '2026-09', areas = [], status = ''
       for (const row of histRows) {
         if (row.status_text && row.status_text.toLowerCase().includes('lunas')) {
           totalPaid += row.price;
-        } else if (row.status_text && !row.status_text.toLowerCase().includes('free')) {
+        } else if (row.status_text && !row.status_text.toLowerCase().includes('free') && !row.status_text.toLowerCase().includes('off')) {
           totalOutstanding += row.price;
         }
       }
@@ -193,7 +193,7 @@ export function getDashboardSummary({ month = '2026-09', areas = [], status = ''
         a.name as areaName,
         COUNT(DISTINCT c.id) as totalCustomers,
         COALESCE(SUM(CASE WHEN i.status = 'LUNAS' THEN i.amount ELSE 0 END), 0) as totalPaid,
-        COALESCE(SUM(CASE WHEN i.status NOT IN ('LUNAS', 'FREE') THEN i.unpaid_amount ELSE 0 END), 0) as totalUnpaid
+        COALESCE(SUM(CASE WHEN i.status NOT IN ('LUNAS', 'FREE', 'SUDAH OFF', 'OFF') THEN i.unpaid_amount ELSE 0 END), 0) as totalUnpaid
       FROM areas a
       LEFT JOIN customers c ON c.area_id = a.id
       LEFT JOIN invoices i ON i.customer_id = c.id ${month && month !== 'ALL' ? 'AND i.billing_period = ?' : ''}
@@ -224,6 +224,7 @@ export function getDashboardSummary({ month = '2026-09', areas = [], status = ''
     const lunasCount = statusDistribution.find(s => s.status === 'LUNAS')?.count || 0;
     const belumLunasCount = statusDistribution.find(s => s.status === 'BELUM LUNAS')?.count || 0;
     const isolirCount = statusDistribution.find(s => s.status === 'ISOLIR')?.count || 0;
+    const offCount = statusDistribution.find(s => s.status === 'SUDAH OFF' || s.status === 'OFF')?.count || 0;
 
     const arpu = totalCustomers > 0 ? Math.round(totalPaid / totalCustomers) : 0;
 
@@ -241,6 +242,7 @@ export function getDashboardSummary({ month = '2026-09', areas = [], status = ''
       lunasCount,
       belumLunasCount,
       isolirCount,
+      offCount,
       selectedMonth: month,
       selectedAreas: areaList,
       arpu,
@@ -386,8 +388,16 @@ export function getReportTable({
           p.price as package_price,
           NULL as invoice_id,
           COALESCE(p.price, 100000) as amount,
-          CASE WHEN LOWER(msh.status_text) LIKE '%lunas%' THEN 'LUNAS' ELSE 'BELUM LUNAS' END as status,
-          CASE WHEN LOWER(msh.status_text) LIKE '%lunas%' THEN 0 ELSE COALESCE(p.price, 100000) END as unpaid_amount,
+          CASE 
+            WHEN LOWER(msh.status_text) LIKE '%lunas%' THEN 'LUNAS' 
+            WHEN LOWER(msh.status_text) LIKE '%off%' THEN 'SUDAH OFF'
+            WHEN LOWER(msh.status_text) LIKE '%free%' THEN 'FREE'
+            ELSE 'BELUM LUNAS' 
+          END as status,
+          CASE 
+            WHEN LOWER(msh.status_text) LIKE '%lunas%' OR LOWER(msh.status_text) LIKE '%off%' OR LOWER(msh.status_text) LIKE '%free%' THEN 0 
+            ELSE COALESCE(p.price, 100000) 
+          END as unpaid_amount,
           0 as unpaid_months,
           msh.status_text as keterangan,
           msh.month_year as billing_period,
@@ -432,7 +442,7 @@ export function getHistoricalTrends() {
       SELECT
         i.billing_period as period,
         COALESCE(SUM(CASE WHEN i.status = 'LUNAS' THEN i.amount ELSE 0 END), 0) as paidAmount,
-        COALESCE(SUM(CASE WHEN i.status NOT IN ('LUNAS', 'FREE') THEN i.unpaid_amount ELSE 0 END), 0) as unpaidAmount,
+        COALESCE(SUM(CASE WHEN i.status NOT IN ('LUNAS', 'FREE', 'SUDAH OFF', 'OFF') THEN i.unpaid_amount ELSE 0 END), 0) as unpaidAmount,
         COUNT(DISTINCT i.customer_id) as totalCustomers,
         COUNT(CASE WHEN i.status = 'LUNAS' THEN 1 END) as lunasCount
       FROM invoices i
@@ -443,7 +453,7 @@ export function getHistoricalTrends() {
       SELECT
         msh.month_year as period,
         COUNT(CASE WHEN LOWER(msh.status_text) LIKE '%lunas%' THEN 1 END) * 100000 as paidAmount,
-        COUNT(CASE WHEN LOWER(msh.status_text) NOT LIKE '%lunas%' AND LOWER(msh.status_text) NOT LIKE '%free%' AND msh.status_text != '' THEN 1 END) * 100000 as unpaidAmount,
+        COUNT(CASE WHEN LOWER(msh.status_text) NOT LIKE '%lunas%' AND LOWER(msh.status_text) NOT LIKE '%free%' AND LOWER(msh.status_text) NOT LIKE '%off%' AND msh.status_text != '' THEN 1 END) * 100000 as unpaidAmount,
         COUNT(DISTINCT msh.customer_id) as totalCustomers,
         COUNT(CASE WHEN LOWER(msh.status_text) LIKE '%lunas%' THEN 1 END) as lunasCount
       FROM monthly_status_history msh
@@ -567,8 +577,9 @@ export function updateInvoice(id, { status, amount, notes }) {
       return Err('Tagihan tidak ditemukan.');
     }
 
-    const unpaidAmount = status === 'LUNAS' ? 0 : amount;
-    const unpaidMonths = status === 'LUNAS' ? 0 : 1;
+    const isSettled = status === 'LUNAS' || status === 'FREE' || status === 'SUDAH OFF' || status === 'OFF';
+    const unpaidAmount = isSettled ? 0 : amount;
+    const unpaidMonths = isSettled ? 0 : 1;
 
     const stmt = db.prepare(
       'UPDATE invoices SET status = ?, amount = ?, unpaid_amount = ?, unpaid_months = ?, notes = ? WHERE id = ?'
@@ -844,15 +855,19 @@ export function getUnpaidReportList({ month = '2026-09', areas = [] } = {}) {
           status_label: 'FREE / GRATIS',
           keterangan: 'FREE (Gratis / Diskon)',
         });
+      } else if (targetStatus === 'SUDAH OFF' || targetStatus === 'OFF' || (targetInv?.notes || '').toLowerCase().includes('off')) {
+        // Customer is SUDAH OFF - not unpaid, do not include in unpaid list
+        continue;
       } else {
-        // Check unpaid invoices for periods <= month where status != 'LUNAS' AND status != 'FREE'
+        // Check unpaid invoices for periods <= month where status != 'LUNAS' AND status != 'FREE' AND status != 'SUDAH OFF'
         const unpaidInvoices = db.prepare(`
           SELECT billing_period, amount, unpaid_amount, status, notes
           FROM invoices
           WHERE customer_id = ?
             AND billing_period <= ?
-            AND status NOT IN ('LUNAS', 'FREE')
+            AND status NOT IN ('LUNAS', 'FREE', 'SUDAH OFF', 'OFF')
             AND LOWER(COALESCE(notes, '')) NOT LIKE '%free%'
+            AND LOWER(COALESCE(notes, '')) NOT LIKE '%off%'
           ORDER BY billing_period ASC
         `).all(cust.id, month);
 

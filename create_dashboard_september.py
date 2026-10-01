@@ -104,7 +104,8 @@ def get_september_records() -> List[CustomerRecord]:
 
         is_paid = status == 'LUNAS'
         is_free = status == 'FREE'
-        tung_rp = float(unpaid or 0) if not is_paid and not is_free else 0.0
+        is_off = status in ('SUDAH OFF', 'OFF')
+        tung_rp = float(unpaid or 0) if not is_paid and not is_free and not is_off else 0.0
         tung_bln = '1' if tung_rp > 0 else ''
 
         records.append(CustomerRecord(
@@ -225,9 +226,20 @@ def build_september_dashboard():
         ws_tp.cell(curr_tp_row, 10).value = rec.mandiri if rec.mandiri > 0 else None
         ws_tp.cell(curr_tp_row, 11).value = rec.bni if rec.bni > 0 else None
 
-        ws_tp.cell(curr_tp_row, 12).value = f'=IF(SUM(G{curr_tp_row}:K{curr_tp_row})>0,"LUNAS","BELUM LUNAS")'
-        ws_tp.cell(curr_tp_row, 13).value = rec.tunggakan_rp if rec.tunggakan_rp > 0 else None
-        ws_tp.cell(curr_tp_row, 14).value = rec.tunggakan_bulan if rec.tunggakan_bulan else None
+        if rec.status in ('SUDAH OFF', 'OFF'):
+            ws_tp.cell(curr_tp_row, 12).value = 'SUDAH OFF'
+            ws_tp.cell(curr_tp_row, 12).font = openpyxl.styles.Font(color="FF0000", bold=True)
+            ws_tp.cell(curr_tp_row, 13).value = None
+            ws_tp.cell(curr_tp_row, 14).value = None
+        elif rec.status == 'FREE':
+            ws_tp.cell(curr_tp_row, 12).value = 'FREE'
+            ws_tp.cell(curr_tp_row, 12).font = openpyxl.styles.Font(color="2563EB", bold=True)
+            ws_tp.cell(curr_tp_row, 13).value = None
+            ws_tp.cell(curr_tp_row, 14).value = None
+        else:
+            ws_tp.cell(curr_tp_row, 12).value = f'=IF(SUM(G{curr_tp_row}:K{curr_tp_row})>0,"LUNAS","BELUM LUNAS")'
+            ws_tp.cell(curr_tp_row, 13).value = rec.tunggakan_rp if rec.tunggakan_rp > 0 else None
+            ws_tp.cell(curr_tp_row, 14).value = rec.tunggakan_bulan if rec.tunggakan_bulan else None
 
     # Bersihkan sisa baris lama di Tagihan Pelanggan
     max_tp_row = max(ws_tp.max_row, tp_start_row + len(records) + 50)

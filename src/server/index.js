@@ -422,6 +422,12 @@ app.get('/api/reports/export/excel', async (req, res) => {
     if (row.status === 'LUNAS') {
       statusCell.font = { bold: true, color: { argb: '059669' } };
       statusCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'D1FAE5' } };
+    } else if (row.status === 'SUDAH OFF' || row.status === 'OFF') {
+      statusCell.font = { bold: true, color: { argb: 'DC2626' } };
+      statusCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FEE2E2' } };
+    } else if (row.status === 'FREE') {
+      statusCell.font = { bold: true, color: { argb: '2563EB' } };
+      statusCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'DBEAFE' } };
     } else {
       statusCell.font = { bold: true, color: { argb: 'D97706' } };
       statusCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FEF3C7' } };

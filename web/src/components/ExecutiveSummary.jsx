@@ -277,6 +277,9 @@ export default function ExecutiveSummary({ data, selectedMonth, selectedAreas })
             const colorMap = {
               'LUNAS': { bg: 'var(--accent-emerald-glow)', text: 'var(--accent-emerald)' },
               'BELUM LUNAS': { bg: 'var(--accent-amber-glow)', text: 'var(--accent-amber)' },
+              'SUDAH OFF': { bg: 'rgba(239, 68, 68, 0.15)', text: '#ef4444' },
+              'OFF': { bg: 'rgba(239, 68, 68, 0.15)', text: '#ef4444' },
+              'FREE': { bg: 'rgba(59, 130, 246, 0.15)', text: '#3b82f6' },
               'ISOLIR': { bg: 'var(--accent-rose-glow)', text: 'var(--accent-rose)' },
               'PROSES': { bg: 'rgba(56, 189, 248, 0.2)', text: 'var(--accent-sky)' },
             };

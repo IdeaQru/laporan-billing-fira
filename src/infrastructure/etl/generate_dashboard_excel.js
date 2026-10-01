@@ -149,9 +149,10 @@ export async function generateDashboardExcel(outputPath) {
     SELECT
       COUNT(DISTINCT i.customer_id) as totalCust,
       COALESCE(SUM(CASE WHEN i.status = 'LUNAS' THEN i.amount ELSE 0 END), 0) as totalPaid,
-      COALESCE(SUM(CASE WHEN i.status = 'BELUM LUNAS' OR i.status = 'ISOLIR' THEN i.amount ELSE 0 END), 0) as totalUnpaid,
+      COALESCE(SUM(CASE WHEN i.status = 'BELUM LUNAS' OR i.status = 'ISOLIR' THEN i.unpaid_amount ELSE 0 END), 0) as totalUnpaid,
       COUNT(CASE WHEN i.status = 'LUNAS' THEN 1 END) as lunasCount,
       COUNT(CASE WHEN i.status = 'BELUM LUNAS' OR i.status = 'ISOLIR' THEN 1 END) as belumCount,
+      COUNT(CASE WHEN i.status = 'SUDAH OFF' OR i.status = 'OFF' THEN 1 END) as offCount,
       COUNT(CASE WHEN i.status = 'FREE' THEN 1 END) as freeCount
     FROM invoices i
     WHERE i.billing_period = ?
@@ -174,7 +175,7 @@ export async function generateDashboardExcel(outputPath) {
     SELECT a.name as areaName, a.code as areaCode,
            COUNT(DISTINCT i.customer_id) as totalCust,
            SUM(CASE WHEN i.status='LUNAS' THEN i.amount ELSE 0 END) as paid,
-           SUM(CASE WHEN i.status!='LUNAS' AND i.status!='FREE' THEN i.amount ELSE 0 END) as unpaid
+           SUM(CASE WHEN i.status NOT IN ('LUNAS', 'FREE', 'SUDAH OFF', 'OFF') THEN i.unpaid_amount ELSE 0 END) as unpaid
     FROM invoices i
     JOIN customers c ON i.customer_id = c.id
     JOIN areas a ON c.area_id = a.id
@@ -232,6 +233,7 @@ export async function generateDashboardExcel(outputPath) {
     ['Saldo Bersih',         netBalance,              'IDR',      netBalance >= 0 ? COLORS.success : COLORS.danger, COLORS.lightGreen],
     ['Sudah Lunas',          kpi?.lunasCount   || 0, 'pelanggan', COLORS.success, COLORS.lightGreen],
     ['Belum Lunas',          kpi?.belumCount   || 0, 'pelanggan', COLORS.danger,  COLORS.lightAmber],
+    ['Sudah OFF',            kpi?.offCount     || 0, 'pelanggan', 'DC2626',       'FEE2E2'],
     ['FREE / Gratis',        kpi?.freeCount    || 0, 'pelanggan', COLORS.free,    COLORS.lightBlue],
   ];
 
@@ -456,6 +458,9 @@ export async function generateDashboardExcel(outputPath) {
     } else if (inv.status === 'FREE') {
       statusCell.font = { bold: true, color: { argb: COLORS.free } };
       statusCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: COLORS.lightBlue } };
+    } else if (inv.status === 'SUDAH OFF' || inv.status === 'OFF') {
+      statusCell.font = { bold: true, color: { argb: 'DC2626' } };
+      statusCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FEE2E2' } };
     } else {
       statusCell.font = { bold: true, color: { argb: COLORS.danger } };
       statusCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: COLORS.lightAmber } };

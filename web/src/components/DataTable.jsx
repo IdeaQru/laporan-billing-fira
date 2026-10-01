@@ -8,6 +8,9 @@ const STATUS_CLASSES = {
   'BELUM LUNAS': 'belum-lunas',
   'ISOLIR': 'isolir',
   'PROSES': 'proses',
+  'SUDAH OFF': 'off',
+  'OFF': 'off',
+  'FREE': 'free',
 };
 
 export default function DataTable({
@@ -318,7 +321,7 @@ export default function DataTable({
             )}
 
             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 12, marginTop: 24 }}>
-              {selectedCustomer.status !== 'LUNAS' && (
+              {selectedCustomer.status !== 'LUNAS' && selectedCustomer.status !== 'SUDAH OFF' && selectedCustomer.status !== 'OFF' && selectedCustomer.status !== 'FREE' && (
                 <button
                   className="btn btn-primary"
                   onClick={() => {

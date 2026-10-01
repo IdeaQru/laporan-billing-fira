@@ -200,6 +200,7 @@ export function parseMultiSheetAreaMatrix(sheetsData, options = {}) {
   let totalFree = 0;
   let totalUnpaid = 0;
   let totalLunas = 0;
+  let totalOff = 0;
 
   for (const [sheetName, rows] of Object.entries(sheetsData)) {
     const areaMatch = matchOfficialArea(sheetName);
@@ -226,6 +227,7 @@ export function parseMultiSheetAreaMatrix(sheetsData, options = {}) {
     let sheetLunas = 0;
     let sheetFree = 0;
     let sheetUnpaid = 0;
+    let sheetOff = 0;
 
     for (let r = firstRowIdx; r <= lastRowIdx; r++) {
       const row = rows[r] || [];
@@ -315,8 +317,15 @@ export function parseMultiSheetAreaMatrix(sheetsData, options = {}) {
           notes = safeStr(rawCell) || 'FREE';
           totalFree++;
           sheetFree++;
+        } else if (valStr.includes('off')) {
+          status = 'SUDAH OFF';
+          unpaidAmount = 0;
+          unpaidMonths = 0;
+          notes = safeStr(rawCell) || 'SUDAH OFF';
+          totalOff++;
+          sheetOff++;
         } else if (isUnpaid) {
-          status = valStr.includes('isolir') ? 'ISOLIR' : (valStr.includes('off') ? 'OFF' : 'BELUM LUNAS');
+          status = valStr.includes('isolir') ? 'ISOLIR' : 'BELUM LUNAS';
           unpaidAmount = basePrice;
           unpaidMonths = 1;
           notes = status === 'BELUM LUNAS' ? 'Belum Lunas' : status;
@@ -376,6 +385,7 @@ export function parseMultiSheetAreaMatrix(sheetsData, options = {}) {
       lunas: sheetLunas,
       free: sheetFree,
       unpaid: sheetUnpaid,
+      off: sheetOff,
     };
   }
 
@@ -397,6 +407,7 @@ export function parseMultiSheetAreaMatrix(sheetsData, options = {}) {
       totalPayments: totalLunas,
       totalFree,
       totalUnpaid,
+      totalOff,
       periodsCount: sortedPeriods.length,
       areaBreakdowns,
     },

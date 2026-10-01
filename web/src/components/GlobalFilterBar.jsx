@@ -124,6 +124,8 @@ export default function GlobalFilterBar({
           <option value="">Semua Status</option>
           <option value="LUNAS">Lunas</option>
           <option value="BELUM LUNAS">Belum Lunas</option>
+          <option value="SUDAH OFF">Sudah Off</option>
+          <option value="FREE">Free</option>
           <option value="ISOLIR">Isolir</option>
           <option value="PROSES">Proses</option>
         </select>
