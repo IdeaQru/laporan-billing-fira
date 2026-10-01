@@ -139,7 +139,7 @@ app.get('/api/months', (req, res) => {
 app.get('/api/dashboard/summary', (req, res) => {
   const { month, areas, status } = req.query;
   const result = getDashboardSummary({
-    month: month || '2026-08',
+    month: month || '2026-09',
     areas: areas || [],
     status: status || '',
   });
@@ -197,7 +197,7 @@ app.get('/api/reports/table', (req, res) => {
     search: search || '',
     status: status || '',
     areas: areas || [],
-    month: month || '2026-07',
+    month: month || '2026-09',
     sortBy: sortBy || 'customer_code',
     sortDir: sortDir || 'ASC',
     page: parseInt(page) || 1,
@@ -216,7 +216,7 @@ app.get('/api/reports/table', (req, res) => {
 app.get('/api/reports/unpaid-list', (req, res) => {
   const { month, areas } = req.query;
   const result = getUnpaidReportList({
-    month: month || '2026-07',
+    month: month || '2026-09',
     areas: areas || [],
   });
 
@@ -340,7 +340,7 @@ app.get('/api/reports/export/excel', async (req, res) => {
     search: search || '',
     status: status || '',
     areas: areas || [],
-    month: month || '2026-07',
+    month: month || '2026-09',
     page: 1,
     limit: 10000,
   });

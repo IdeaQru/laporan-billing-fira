@@ -65,7 +65,7 @@ export function getAvailableMonths() {
  * @param {string} [params.status]
  * @returns {import('../../domain/types/index.js').Result<object, string>}
  */
-export function getDashboardSummary({ month = '2026-07', areas = [], status = '' } = {}) {
+export function getDashboardSummary({ month = '2026-09', areas = [], status = '' } = {}) {
   try {
     const db = getReadonlyDatabase();
     const areaList = parseAreasParam(areas);
@@ -270,7 +270,7 @@ export function getReportTable({
   search = '',
   status = '',
   areas = [],
-  month = '2026-07',
+  month = '2026-09',
   sortBy = 'customer_code',
   sortDir = 'ASC',
   page = 1,
@@ -783,7 +783,7 @@ function formatUnpaidMonthsDetail(periodsStr) {
 // ============================================================
 // Unpaid Customers Report List (For PDF Page 3+)
 // ============================================================
-export function getUnpaidReportList({ month = '2026-07', areas = [] } = {}) {
+export function getUnpaidReportList({ month = '2026-09', areas = [] } = {}) {
   try {
     const db = getReadonlyDatabase();
     const areaList = parseAreasParam(areas);

@@ -71,7 +71,7 @@ function Dashboard({ session, onLogout }) {
   const [packages, setPackages] = useState([]);
   const [months, setMonths] = useState([]);
 
-  const [selectedMonth, setSelectedMonth] = useState('2026-08');
+  const [selectedMonth, setSelectedMonth] = useState('2026-09');
   const [selectedAreas, setSelectedAreas] = useState([]);
   const [selectedStatus, setSelectedStatus] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
@@ -150,7 +150,7 @@ function Dashboard({ session, onLogout }) {
   useEffect(() => { fetchSummary(); }, [fetchSummary]);
 
   const handleResetFilters = () => {
-    setSelectedMonth('2026-08');
+    setSelectedMonth('2026-09');
     setSelectedAreas([]);
     setSelectedStatus('');
     setSearchQuery('');
