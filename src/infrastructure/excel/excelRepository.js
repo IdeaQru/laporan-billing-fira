@@ -84,9 +84,14 @@ export function commitFullRebuild(parsedData) {
     const getCustId = db.prepare('SELECT id FROM customers WHERE customer_code = ?');
 
     // 3. Packages
+    insertPkg.run(5, '5mbps', 50000);
+    insertPkg.run(7, '7mbps', 75000);
+    insertPkg.run(9, '9mbps', 90000);
     insertPkg.run(10, '10mbps', 100000);
+    insertPkg.run(15, '15mbps', 150000);
     insertPkg.run(20, '20mbps', 200000);
     insertPkg.run(30, '30mbps', 250000);
+    insertPkg.run(50, '50mbps', 350000);
 
     // 4. Areas
     for (const info of Object.values(OFFICIAL_AREAS)) {

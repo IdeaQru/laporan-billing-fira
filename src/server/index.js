@@ -466,7 +466,7 @@ app.get('/api/reports/export/excel', async (req, res) => {
 // ============================================================
 app.post('/api/sync', async (req, res) => {
   try {
-    const counts = migrate();
+    const counts = await migrate();
 
     // Auto-regenerate dashboard.xlsx after successful migration
     const dashPath = join(ROOT, 'data', 'raw', 'dashboard.xlsx');
@@ -517,7 +517,7 @@ app.post('/api/upload-excel', express.raw({ type: '*/*', limit: '50mb' }), async
     console.log(`📥 Uploaded new Excel file saved (${req.body.length} bytes)`);
 
     // 1. Run database migration automatically
-    const counts = migrate();
+    const counts = await migrate(uploadedPath);
 
     // 2. Auto-regenerate 6-sheet dashboard.xlsx automatically
     const dashPath = join(rawDir, 'dashboard.xlsx');

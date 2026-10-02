@@ -18,6 +18,8 @@ function resolveLaporanPath(customPath) {
   if (process.argv[2] && existsSync(process.argv[2])) return process.argv[2];
 
   const candidates = [
+    join(ROOT, 'laporan_september fixx.xls'),
+    join(ROOT, 'data', 'raw', 'laporan_september fixx.xls'),
     join(ROOT, 'laporan_september.xls'),
     join(ROOT, 'data', 'raw', 'laporan_september.xls'),
     join(ROOT, 'laporan agustusfix.xls'),
